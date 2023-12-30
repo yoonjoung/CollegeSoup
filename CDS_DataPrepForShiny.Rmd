@@ -1,0 +1,1684 @@
+---
+output:
+  html_document:
+    toc: true
+    toc_depth: 5
+    toc_float: true
+---
+
+```{r intro, echo=FALSE, results="hide"}
+knitr::opts_chunk$set(echo=FALSE, 
+                      message=FALSE, 
+                      comment = "", 
+                      warning=FALSE, 
+                      results="asis") 
+
+date<-as.Date(Sys.time(	), format='%d%b%Y')
+
+suppressWarnings(suppressMessages(library(dplyr)))
+suppressWarnings(suppressMessages(library(plyr)))
+suppressWarnings(suppressMessages(library(tidyr)))
+suppressWarnings(suppressMessages(library(readxl)))
+suppressWarnings(suppressMessages(library(plotly)))
+suppressWarnings(suppressMessages(library(writexl)))
+suppressWarnings(suppressMessages(library(stringr)))
+suppressWarnings(suppressMessages(library(RColorBrewer))) 
+```
+
+```{r import, results='hide'}
+dta <- read_excel("~/Dropbox/0Kids/CDS/CommonDataSet.xlsx", 
+                  range = "A3:CY1000",
+                  col_names = TRUE)%>%
+    select(-starts_with("..."))%>%
+    filter(is.na(college)==FALSE)
+```
+
+```{r genvar_group, results='hide'}
+dta <- dta%>%
+    
+    mutate(
+        
+        # simplify names #### 
+       college = gsub("U of", "U", college), 
+       college = gsub("University of", "U", college), 
+       college = gsub("State University", "SU", college), 
+       college = replace(college, college=="George Washington", "GW"),
+
+        # WOMEN'S COLLEGE ####
+        women = 0, 
+        women = replace(women, 
+                        college=="Wellesley" | 
+                            college=="Barnard" | 
+                            college=="Bryn Mawr" | 
+                            college=="Smith" | 
+                            college=="Agnes Scott",
+                        1),
+       
+        # open curriculum ####
+        open = 0, 
+        open = replace(open, 
+                       #completely open
+                           college=="Amherst" | 
+                           college=="Brown" | 
+                           college=="Grinnell" | 
+                           college=="Smith" | 
+                           
+                       #relatively open   
+                           college=="Claremont McKenna" | 
+                           college=="Hamilton" | 
+                           college=="UCSD" |
+                           college=="Vassar" | 
+                           college=="Wake Forest" | 
+                           college=="Wesleyan" | 
+                           college=="Williams" |  
+                       
+                       #meta major
+                       college=="Georgia SU" | 
+                           college=="UWisc_Madison" ,
+                       1), 
+       
+        # public ####
+        public = 0, 
+        public = replace(public, 
+                        exp_tuitioninstate != exp_tuitionoutstate,
+                        1),       
+       
+        # instate ####
+        instate = 0, 
+        instate = replace(instate, 
+                        college=="UM_CollegePark" | 
+                            college=="UMBC" ,
+                        1),        
+        # outofstate ####
+        outofstate = 0, 
+        outofstate = replace(outofstate, 
+                        public==1 & instate==0,
+                        1) 
+    )%>%
+    
+    group_by(college) %>%
+    mutate(
+        public = max(public, na.rm = TRUE), 
+        instate = max(instate, na.rm = TRUE),
+        outofstate = max(outofstate, na.rm = TRUE)
+    )%>%
+    ungroup()
+
+colnames(dta)
+temp<-dta%>%filter(public==1)
+table(temp$college)
+
+```
+
+```{r genvar1, results='hide'}      
+colnames(dta)<-tolower(colnames(dta))
+
+dta<-dta%>%
+    mutate(
+        num_under_ftmale=replace(num_under_ftmale, women==1, 0), 
+        numapp_male=replace(numapp_male, women==1, 0), 
+        numadmit_male=replace(numadmit_male, women==1, 0), 
+        numenroll_male=replace(numenroll_male, women==1, 0), 
+        
+        # STUDENT POPULATION  
+        ratio_underft_mf = round(num_under_ftmale / num_under_ftfemale, 2),   
+        pc_total_under = num_under / num_under + num_graduate, 
+        pc_under_nra = num_under_nra / num_under, 
+        pc_under_asian = num_under_asian / num_under, 
+        pc_under_ft = (num_under_ftmale / num_under_ftfemale) / num_under, 
+        # TRANSFER
+        numtransapp_total = as.numeric(numtransapp_total), 
+        numtransadmit_total = as.numeric(numtransadmit_total), 
+        numtransenroll_total = as.numeric(numtransenroll_total), 
+        
+        # ADMISSION
+        numapp_total = numapp_male + numapp_female, 
+        numadmit_total = numadmit_male + numadmit_female, 
+        numenroll_total = numenroll_male + numenroll_female, 
+        
+        pc_admit_male = numadmit_male / numapp_male, 
+        pc_admit_female = numadmit_female / numapp_female, 
+        pc_admit_total = numadmit_total / numapp_total, 
+        pc_admit_ed = numadmit_ed / numapp_ed, 
+        
+        pc_yield_male = numenroll_male / numadmit_male, 
+        pc_yield_female = numenroll_female / numadmit_female, 
+        pc_yield_total = numenroll_total / numadmit_total, 
+                
+        pc_ed_among_enroll = numadmit_ed / numadmit_total,
+        pc_enroll_ed = numadmit_ed / numenroll_total, 
+        
+        earlydecision = 0, 
+        earlydecision = replace(earlydecision, ed=="Yes", 1), 
+        
+        pct_gpa4 = replace(pct_gpa4, year<=2018, NA)
+        #cut off changed in 2019 from 3.75 to 4.0
+
+    )%>%
+
+    mutate_at(vars(starts_with("pc_")), 
+              funs(round((.*100), 0)))%>%    
+    
+    rename_at(.vars = vars(starts_with("pc_")), 
+              .funs = funs(sub("pc_", "pct_", .)))%>%
+
+    mutate_at(vars(starts_with(c("aca_", "acna_"))), 
+              funs(tolower(.)))%>%
+
+    mutate(    
+        stsimportant = 0, 
+        stsimportant = replace(stsimportant, 
+                               grepl("important", aca_sts)==TRUE, 1),
+        
+        sat25optional = sat25, 
+        sat75optional = sat75,
+        pct_submitsatoptional = pct_submitsat
+    )%>%
+    mutate_at(vars(ends_with("optional")), 
+              ~replace(., stsimportant==1, NA))
+```
+
+```{r genvar2, results='hide'} 
+
+temp<-dta%>%
+    select(starts_with(c("aca_", "acna_")))%>%
+    rename_all(.funs = funs(sub("acna_", "num_acna_", .)))%>%
+    rename_all(.funs = funs(sub("aca_", "num_aca_", .)))%>%
+    mutate_all(.funs = funs(as.numeric("0")))
+
+dta<-cbind(dta, temp)%>%
+    mutate()
+
+aclist<-dta%>%
+    select(starts_with(c("aca_", "acna_")))%>%
+    colnames()
+
+dta<-dta%>%
+    mutate(
+        num_aca_rigor = ifelse(aca_rigor=="very important", 100, ifelse(aca_rigor=="important", 80, ifelse(aca_rigor=="considered" | aca_rigor=="considered if submitted", 60, ifelse(aca_rigor=="not considered", 40, NA)))) 	, 
+        num_aca_rank = ifelse(aca_rank=="very important", 100, ifelse(aca_rank=="important", 80, ifelse(aca_rank=="considered" | aca_rank=="considered if submitted", 60, ifelse(aca_rank=="not considered", 40, NA)))) 	, 
+        num_aca_gpa = ifelse(aca_gpa=="very important", 100, ifelse(aca_gpa=="important", 80, ifelse(aca_gpa=="considered" | aca_gpa=="considered if submitted", 60, ifelse(aca_gpa=="not considered", 40, NA)))) 	, 
+        num_aca_sts = ifelse(aca_sts=="very important", 100, ifelse(aca_sts=="important", 80, ifelse(aca_sts=="considered" | aca_sts=="considered if submitted", 60, ifelse(aca_sts=="not considered", 40, NA)))) 	, 
+        num_aca_essay = ifelse(aca_essay=="very important", 100, ifelse(aca_essay=="important", 80, ifelse(aca_essay=="considered" | aca_essay=="considered if submitted", 60, ifelse(aca_essay=="not considered", 40, NA)))) 	, 
+        num_aca_recomendation = ifelse(aca_recomendation=="very important", 100, ifelse(aca_recomendation=="important", 80, ifelse(aca_recomendation=="considered" | aca_recomendation=="considered if submitted", 60, ifelse(aca_recomendation=="not considered", 40, NA)))) 	, 
+        num_acna_interview = ifelse(acna_interview=="very important", 100, ifelse(acna_interview=="important", 80, ifelse(acna_interview=="considered" | acna_interview=="considered if submitted", 60, ifelse(acna_interview=="not considered", 40, NA)))) 	, 
+        num_acna_extra.cur.activities = ifelse(acna_extra.cur.activities=="very important", 100, ifelse(acna_extra.cur.activities=="important", 80, ifelse(acna_extra.cur.activities=="considered" | acna_extra.cur.activities=="considered if submitted", 60, ifelse(acna_extra.cur.activities=="not considered", 40, NA)))) 	, 
+        num_acna_talent = ifelse(acna_talent=="very important", 100, ifelse(acna_talent=="important", 80, ifelse(acna_talent=="considered" | acna_talent=="considered if submitted", 60, ifelse(acna_talent=="not considered", 40, NA)))) 	, 
+        num_acna_character = ifelse(acna_character=="very important", 100, ifelse(acna_character=="important", 80, ifelse(acna_character=="considered" | acna_character=="considered if submitted", 60, ifelse(acna_character=="not considered", 40, NA)))) 	, 
+        num_acna_first.gen = ifelse(acna_first.gen=="very important", 100, ifelse(acna_first.gen=="important", 80, ifelse(acna_first.gen=="considered" | acna_first.gen=="considered if submitted", 60, ifelse(acna_first.gen=="not considered", 40, NA)))) 	, 
+        num_acna_alum.relation = ifelse(acna_alum.relation=="very important", 100, ifelse(acna_alum.relation=="important", 80, ifelse(acna_alum.relation=="considered" | acna_alum.relation=="considered if submitted", 60, ifelse(acna_alum.relation=="not considered", 40, NA)))) 	, 
+        num_acna_geo.residence = ifelse(acna_geo.residence=="very important", 100, ifelse(acna_geo.residence=="important", 80, ifelse(acna_geo.residence=="considered" | acna_geo.residence=="considered if submitted", 60, ifelse(acna_geo.residence=="not considered", 40, NA)))) 	, 
+        num_acna_state.residence = ifelse(acna_state.residence=="very important", 100, ifelse(acna_state.residence=="important", 80, ifelse(acna_state.residence=="considered" | acna_state.residence=="considered if submitted", 60, ifelse(acna_state.residence=="not considered", 40, NA)))) 	, 
+        num_acna_religious.aff = ifelse(acna_religious.aff=="very important", 100, ifelse(acna_religious.aff=="important", 80, ifelse(acna_religious.aff=="considered" | acna_religious.aff=="considered if submitted", 60, ifelse(acna_religious.aff=="not considered", 40, NA)))) 	, 
+        num_acna_race.ethnicity = ifelse(acna_race.ethnicity=="very important", 100, ifelse(acna_race.ethnicity=="important", 80, ifelse(acna_race.ethnicity=="considered" | acna_race.ethnicity=="considered if submitted", 60, ifelse(acna_race.ethnicity=="not considered", 40, NA)))) 	, 
+        num_acna_volunteer.work = ifelse(acna_volunteer.work=="very important", 100, ifelse(acna_volunteer.work=="important", 80, ifelse(acna_volunteer.work=="considered" | acna_volunteer.work=="considered if submitted", 60, ifelse(acna_volunteer.work=="not considered", 40, NA)))) 	, 
+        num_acna_work = ifelse(acna_work=="very important", 100, ifelse(acna_work=="important", 80, ifelse(acna_work=="considered" | acna_work=="considered if submitted", 60, ifelse(acna_work=="not considered", 40, NA)))) 	, 
+        num_acna_interest = ifelse(acna_interest=="very important", 100, ifelse(acna_interest=="important", 80, ifelse(acna_interest=="considered" | acna_interest=="considered if submitted", 60, ifelse(acna_interest=="not considered", 40, NA)))) 	
+)
+```
+
+```{r, eval = FALSE}
+# Loop through each item in the itemlist
+for (item in aclist) {
+}
+
+for (i in 1:length(aclist)){
+}
+
+temp<-dta%>%select(college, year, aca_rigor, aca_sts, num_aca_rigor, num_aca_sts)
+
+View(temp)
+```
+
+```{r, eval = FALSE}
+temp<-dta%>%select(college, year, starts_with("numtrans"))
+View(temp)
+str(temp)
+```
+
+```{r genvar3, results='hide'} 
+dta<-dta%>%
+    
+    group_by(college) %>%
+    mutate(
+        count = n(), 
+        yearlatest = max(year), 
+
+        ref = numapp_total, 
+        ref = replace(ref, year!=yearlatest, NA), 
+        ref = mean(ref, na.rm = TRUE), 
+        relnumapp_total = round(numapp_total / ref, 2), 
+        
+        ref = numadmit_total, 
+        ref = replace(ref, year!=yearlatest, NA), 
+        ref = mean(ref, na.rm = TRUE), 
+        relnumadmit_total = round(numadmit_total / ref, 2), 
+        
+        ref = numenroll_total, 
+        ref = replace(ref, year!=yearlatest, NA), 
+        ref = mean(ref, na.rm = TRUE), 
+        relnumenroll_total = round(numenroll_total / ref, 2),         
+        
+        earlydecision = max(earlydecision, na.rm = TRUE), 
+        
+        ref = numapp_ed, 
+        ref = replace(ref, year!=yearlatest, NA), 
+        ref = mean(ref, na.rm = TRUE), 
+        relnumapp_ed = round(numapp_ed / ref, 2), 
+        
+        ref = numtransapp_total, 
+        ref = replace(ref, year!=yearlatest, NA), 
+        ref = mean(ref, na.rm = TRUE), 
+        relnumtransapp_total = round(numtransapp_total / ref, 2), 
+        
+        ref = numtransadmit_total, 
+        ref = replace(ref, year!=yearlatest, NA), 
+        ref = mean(ref, na.rm = TRUE), 
+        relnumtransadmit_total = round(numtransadmit_total / ref, 2),     
+        
+        ref = numtransenroll_total, 
+        ref = replace(ref, year!=yearlatest, NA), 
+        ref = mean(ref, na.rm = TRUE), 
+        relnumtransenroll_total = round(numtransenroll_total / ref, 2), 
+        
+        temp = mean(numtransenroll_total)/mean(num_under), 
+        relnumtransapp_total = replace(relnumtransapp_total, temp<0.05, NA), 
+        relnumtransadmit_total = replace(relnumtransadmit_total, temp<0.05, NA), 
+        relnumtransenroll_total = replace(relnumtransenroll_total, temp<0.05, NA),
+        
+        latest_num_under = num_under,
+        latest_num_under = replace(latest_num_under, year!=yearlatest, NA), 
+        latest_num_under = mean(latest_num_under, na.rm = TRUE), 
+    )%>%
+    ungroup()%>%
+    select(-ref, -temp)%>%
+    mutate(
+
+        # EXPENSES ####
+        #exp_tuition = as.numeric(str_replace(exp_tuition, 
+        #                                     "[^a-zA-Z0-9]", " ")), 
+
+        tuition = exp_tuition, 
+        tuition = ifelse(outofstate==1, exp_tuitionoutstate,
+                         ifelse(instate==1, exp_tuitioninstate,
+                                tuition)),
+        totalcost = tuition + exp_fees + exp_rnb, 
+        
+        # FINANCIAL AID ####
+        pct_nba_applied = numapp_nba / numenroll_total,    
+        pct_nba_determined = numdet_nba / numenroll_total,
+        pct_nba_received = numrec_nba / numenroll_total,
+        pct_nba_received_grant = numrec_nba_grant / numenroll_total,
+        pct_nba_received_selfhelp = numrec_nba_selfhelp / numenroll_total,
+        pct_nba_received_nonnba = numrec_nba_nonnba / numenroll_total,
+        
+        pct_nonnba_received = numrec_nonnba / numenroll_total, 
+        pct_nonnbaath_received = numrec_nonnba_ath / numenroll_total, 
+        pct_needmet = round(pct_needmet, 0)
+    )%>%
+    
+    mutate_at(vars(starts_with(c("pct_nba", "pct_nonnba"))), 
+              funs(round((.*100), 0)))%>%
+    
+    mutate_at(vars(starts_with(c("offer_"))), 
+              funs(ifelse(is.na(.)==TRUE, "No", .)))%>%
+    
+    mutate_at(vars(starts_with("pct")), 
+              funs(round((.), 0))) 
+
+dim(dta)
+```
+
+```{r genvar_group_more, results='hide'}
+dta <- dta%>%
+    
+    mutate(
+
+        # size #### 
+        tiny = latest_num_under < 2000,
+        small = latest_num_under >= 2000 & latest_num_under < 5000,
+        medium = latest_num_under >= 5000 & latest_num_under<10000,
+        large = latest_num_under >= 10000 & latest_num_under<30000,
+        huge = latest_num_under >= 30000, 
+       
+        # group #### 
+        all=1, 
+        groupall = ifelse(all==1, "all", ""), 
+        groupsize = ifelse(tiny==1, "tiny", 
+                           ifelse(small==1, "small", 
+                           ifelse(medium==1, "medium", 
+                           ifelse(large==1, "large", 
+                           ifelse(huge==1, "huge",       
+                                  ""))))),
+        groupwomen = ifelse(women==1, "women", ""),
+        groupopen = ifelse(open==1, "open", ""), 
+        grouppublic = ifelse(public==1, "public", ""), 
+        group=paste(groupall, groupsize, groupwomen, groupopen, grouppublic) 
+    )
+```
+
+```{r dta_all_vs_dta, results='hide'}
+dtaall_latest<-dta%>%
+    filter(year==yearlatest)
+    
+dta<-dta%>%
+    filter(college!="Harvard" &
+              college!="Amherst" & 
+              college!="Princeton" & 
+              college!="Vanderbilt" & 
+              college!="Hamilton" &
+              college!="Davidson" &
+              college!="Williams") 
+
+```
+
+```{r export_dta, results='hide'}
+#write.csv(dta, "college_data.csv", na='.')
+write_xlsx(dta, 'Shiny/college_data_shiny.xlsx', col_names = TRUE)
+
+write_xlsx(dtaall_latest, 'Shiny/college_data_shiny_all_latest.xlsx', col_names = TRUE)
+#str(dta)
+
+```
+
+```{r eval=FALSE}
+temp<-dta%>%
+    filter(year==2022)%>%
+    select(college, tuition, instate, outofstate, starts_with("exp"))
+
+head(temp, 30)
+```
+
+```{r, eval=FALSE}
+temp<-dta%>%
+    filter(college=="Bowdain" | college=="UCLA" | college=="Smith")%>%
+    select(college, year, starts_with(c("numapp_")))
+
+View(temp)
+```
+
+```{r function_hline}
+hline <- function(y = 0, color = "#f0f0f0") {
+  list(
+    type = "line",
+    x0 = 0,
+    x1 = 1,
+    xref = "paper",
+    y0 = y,
+    y1 = y,
+    line = list(color = color)
+  )
+}
+```
+
+```{r function_vline}
+vline <- function(x = 0, color = "#f0f0f0") {
+  list(
+    type = "line",
+    x0 = x,
+    x1 = x,
+    y0 = 0,
+    y1 = 0.95,
+    yref = "paper",
+    line = list(color = color)
+  )
+}
+```
+
+```{r colorlist}
+greycolors <- brewer.pal(7,"Greys")
+bluecolors <- brewer.pal(7,"Blues")
+greencolors <- brewer.pal(7,"Greens")
+orangecolors <- brewer.pal(7,"Oranges")
+redcolors <- brewer.pal(7,"Reds")
+purplecolors <- brewer.pal(7,"Purples")
+divcolors<-brewer.pal(7,"RdYlBu")
+qualcolors<-brewer.pal(7,"Set3")
+```
+
+k## 1. Admission
+### 1.1 What are trends of the overall admission rate? 
+```{r plot_admit_all}
+dta%>%
+    plot_ly(
+        x = ~year, y = ~pct_admit_total, 
+        type="scatter", mode = 'lines+markers', 
+        hovertemplate = paste0(
+            dta$college,       
+            "<br>Year: ", dta$year, 
+            "<br>Admission rate: ", dta$pct_admit_total, " (%)"), 
+        color = ~college)%>%
+    layout(
+        title = "Admission rate (%), trends", 
+        shapes = list(vline(2021)),
+        yaxis = list(title = "Admission rate (%)",  
+                     range=c(0, 100), 
+                     showgrid = FALSE, 
+                     showticklabels = TRUE),
+        xaxis = list(title = "Year", showgrid = FALSE , range=c(2013, 2023))
+    )
+```        
+
+### 1.2 What are trends of an overall admission rate by specific group - especially for the early decision applications? 
+* <span style="color: #74add1;">Men</span> 
+* <span style="color: #f46d43;">Women</span> 
+* <span style="color: #66bd63;">Early decision</span> 
+* <span style="color: #878787;">Ovreall</span> 
+```{r plot_admit_detail}
+panel <- . %>% 
+    plot_ly(
+        x = ~year, 
+        type="scatter", mode = 'lines+markers', 
+        y = ~pct_admit_male, 
+        name="Male",
+        line = list(color = '#74add1'),
+        marker = list(color = '#74add1'))%>%
+    add_trace(y = ~pct_admit_female, 
+              name="Female",
+              line = list(color = '#f46d43'),
+              marker = list(color = '#f46d43'))%>%
+    add_trace(y = ~pct_admit_ed, 
+              name="Early Decision",
+              line = list(color = '#66bd63'),
+              marker = list(color = '#66bd63'))%>%    
+    add_trace(y = ~pct_admit_total, 
+              name="All",
+              line = list(color = '#878787'),
+              marker = list(color = '#878787'))%>%        
+    add_annotations(
+        text = ~unique(college),
+        x = 0.5, y = 0.9, xref = "paper", yref = "paper",    
+        xanchor = "center", yanchor = "bottom", showarrow = FALSE,
+        font = list(size = 12)
+        ) %>%        
+    layout(
+        title = "Admission rate (%), trends, by group", 
+        shapes = list(vline(2021)),
+        yaxis = list(title = "Admission rate (%)", 
+                     range=c(0, 100), 
+                     showgrid = FALSE, 
+                     showticklabels = TRUE),
+        xaxis = list(title = "Year", showgrid = FALSE , range=c(2013, 2023))
+    )
+
+dtafig<-dta%>%filter(count>=2)
+
+dtafig%>%
+    group_by(college) %>%
+    do(p = panel(.)) %>%
+    subplot(nrows = ceiling(length(unique(dtafig$college))/5), 
+            shareX = TRUE, shareY = TRUE) %>% 
+    layout(
+        title = "",
+        showlegend = FALSE)
+```      
+
+### 1.3 Why admission rates decrease? 
+#### 1.3.1 Do colleges change the class size? 
+```{r plot_relnumadmit_total}
+dta%>%
+    #filter(count>=2)%>%
+    plot_ly(
+        x = ~year, y = ~relnumadmit_total,
+        type="scatter", mode = 'lines+markers', 
+        hovertemplate = paste0(
+            dta$college,       
+            "<br>Year: ", dta$year, 
+            "<br>Ratio: ", dta$relnumadmit_total),    
+        color = ~college)%>%
+    layout(
+        title = "Relative number of admitted students, total", 
+        yaxis = list(title = "Ratio (reference = value in the latest year)",  
+                     range=c(0, 3), 
+                     showgrid = FALSE, 
+                     showticklabels = TRUE),
+        shapes = list(hline(1), vline(2021)),
+        xaxis = list(title = "Year", showgrid = FALSE , range=c(2013, 2023))
+    )
+```
+
+```{r plot_relnumenroll_total}
+dta%>%
+    #filter(count>=2)%>%
+    plot_ly(
+        x = ~year, y = ~relnumenroll_total,
+        type="scatter", mode = 'lines+markers', 
+        hovertemplate = paste0(
+            dta$college,       
+            "<br>Year: ", dta$year, 
+            "<br>Ratio: ", dta$relnumenroll_total),            
+        color = ~college)%>%
+    layout(
+        title = "Relative number of enrolled students, total", 
+        yaxis = list(title = "Ratio (reference = value in the latest year)",  
+                     range=c(0, 2), 
+                     showgrid = FALSE, 
+                     showticklabels = TRUE),
+        shapes = list(hline(1), vline(2021)),
+        xaxis = list(title = "Year", showgrid = FALSE , range=c(2013, 2023))
+    )
+```
+##### What is going on in Northeasterm? 
+* <span style="color: #313695;">Number of admitted applicants</span>   
+* <span style="color: #4575b4;">Number of enrolled freshmen</span>   
+* <span style="color: #74add1;">Number of all undergraduate students</span>    
+* <span style="color: red;">Number of all graduate students</span>
+```{r plot_num_student_northeastern}
+dta%>%
+    filter(count>=2)%>%
+    filter(college=="Northeastern")%>%
+    plot_ly(
+        x = ~year, 
+        type="scatter", mode = 'lines+markers', 
+        y = ~numadmit_total,
+        name="Admitted applicants, total",
+        line = list(color = '#313695'),
+        marker = list(color = '#313695'))%>%
+    add_trace(y = ~numenroll_total, 
+              name="Enrolled freshmen, total",
+              line = list(color = '#4575b4'),
+              marker = list(color = '#4575b4'))%>%        
+    add_trace(y = ~num_under, 
+              name="Undergraduate students, total",
+              line = list(color = '#74add1'),
+              marker = list(color = '#74add1'))%>%        
+    add_trace(y = ~num_graduate, 
+              name="Graduate students, total",
+              line = list(color = 'red'),
+              marker = list(color = 'red'))%>%            
+    layout(
+        title = "Number of applicants/students, total", 
+        shapes = list(vline(2021)),
+        yaxis = list(title = "Number",  
+                     showgrid = FALSE, 
+                     showticklabels = TRUE),
+        xaxis = list(title = "Year", showgrid = FALSE , range=c(2013, 2023))
+    )
+```
+
+##### What about other colleges? Do they also have shift towards graduate school(s)? 
+* <span style="color: #4575b4;">Number of enrolled freshmen</span>   
+* <span style="color: #74add1;">Number of all undergraduate students</span>    
+* <span style="color: red;">Number of all graduate students</span>   
+
+**Small colleges** (undergraduate students less than 5K)
+```{r plot_num_student_small}
+panel <- . %>% 
+    plot_ly(x = ~year, 
+            type="scatter", mode = 'lines+markers', 
+            y = ~numenroll_total, 
+            name="Enrolled freshmen, total",
+            line = list(color = '#4575b4'),
+            marker = list(color = '#4575b4'))%>%        
+    add_trace(y = ~num_under, 
+              name="Undergraduate students, total",
+              line = list(color = '#74add1'),
+              marker = list(color = '#74add1'))%>%        
+    add_trace(y = ~num_graduate, 
+              name="Graduate students, total",
+              line = list(color = 'red'),
+              marker = list(color = 'red'))%>%       
+    add_annotations(
+        text = ~unique(college),
+        x = 0.5, y = 0.9, xref = "paper", yref = "paper",    
+        xanchor = "center", yanchor = "bottom", showarrow = FALSE,
+        font = list(size = 12)
+        ) %>%            
+    layout(
+        title = "Number of students, total", 
+        shapes = list(vline(2021)),
+        yaxis = list(title = "Number",  
+                     showgrid = FALSE, 
+                     showticklabels = TRUE),
+        xaxis = list(title = "Year", showgrid = FALSE , range=c(2013, 2023))
+    )
+
+dtafig<-dta%>%filter(count>=2 & small==1)
+
+dtafig%>%
+    group_by(college) %>%
+    do(p = panel(.)) %>%
+    subplot(nrows = ceiling(length(unique(dtafig$college))/5), 
+            shareX = TRUE, shareY = TRUE) %>% 
+    layout(
+        title = "",
+        showlegend = FALSE)
+```
+**Medium colleges** (undergraduate students 5k - 20K)
+```{r plot_num_student_medium}
+dtafig<-dta%>%filter(count>=2 & medium==1)
+
+dtafig%>%
+    group_by(college) %>%
+    do(p = panel(.)) %>%
+    subplot(nrows = ceiling(length(unique(dtafig$college))/5), 
+            shareX = TRUE, shareY = TRUE) %>% 
+    layout(
+        title = "",
+        showlegend = FALSE)
+```  
+**Large colleges** (undergraduate students 20K or more)
+```{r plot_num_student_large}
+dtafig<-dta%>%filter(count>=2 & large==1)
+
+dtafig%>%
+    group_by(college) %>%
+    do(p = panel(.)) %>%
+    subplot(nrows = ceiling(length(unique(dtafig$college))/5), 
+            shareX = TRUE, shareY = TRUE) %>% 
+    layout(
+        title = "",
+        showlegend = FALSE)
+```  
+
+##### Are there outliers in admission and yield rates?  
+```{r plot_admit_tield}
+dta%>%
+    #filter(count>=2)%>%
+    plot_ly(
+        x = ~pct_admit_total, y = ~pct_yield_total,
+        type="scatter", mode = 'markers', 
+        hovertemplate = paste0(
+            dta$college,       
+            "<br>Admission rate: ", dta$pct_admit_total, " (%)",
+            "<br>Yield rate: ", dta$pct_yield_total, " (%)",
+            "<br>Year: ", dta$year),            
+        color = ~college)%>%
+    layout(
+        title = "Relative number of admitted students, total", 
+        yaxis = list(title = "Yield rate (%)",  
+                     range=c(0, 100), 
+                     showgrid = FALSE, 
+                     showticklabels = TRUE),
+        shapes = list(hline(1), vline(2021)),
+        xaxis = list(title = "Admission rate (%)", showgrid = FALSE , range=c(0, 100))
+    )
+```
+
+#### 1.3.2 Do colleges receive more applications?
+```{r plot_relnumapp_total}
+dta%>%
+    filter(count>=2)%>%
+    plot_ly(
+        x = ~year, y = ~relnumapp_total,
+        type="scatter", mode = 'lines+markers', 
+        color = ~college)%>%
+    layout(
+        title = "Relative number of applications, total", 
+        shapes = list(hline(1), vline(2021)),
+        yaxis = list(title = "Ratio (reference = value in the latest year)",  
+                     range=c(0, max(dta$relnumapp_total)), 
+                     showgrid = FALSE, 
+                     showticklabels = TRUE),
+        xaxis = list(title = "Year", showgrid = FALSE , range=c(2013, 2023))
+    )
+```
+
+#### 1.3.3 Do colleges receive more *early decision* applications?
+```{r plot_relnumapp_ed}
+dta%>%
+    filter((earlydecision==1 & count>=2) | 
+               (is.na(numapp_ed)==FALSE & count>=2))%>%
+    plot_ly(
+        x = ~year, y = ~relnumapp_ed,
+        type="scatter", mode = 'lines+markers', 
+        color = ~college)%>%
+    layout(
+        title = "Relative number of applications, early decision", 
+        shapes = list(hline(1), vline(2021)),
+        yaxis = list(title = "Ratio (reference = value in the latest year)",  
+                     range=c(0, max(dta$relnumapp_ed)), 
+                     showgrid = FALSE, 
+                     showticklabels = TRUE),
+        xaxis = list(title = "Year", showgrid = FALSE , range=c(2013, 2023))
+    )
+```
+
+#### 1.3.4 Transfer
+```{r plot_relnumtransapp_total}
+dta%>%
+    #filter(count>=2)%>%
+    plot_ly(
+        x = ~year, y = ~relnumtransapp_total,
+        type="scatter", mode = 'lines+markers', 
+        hovertemplate = paste0(
+            dta$college,       
+            "<br>Year: ", dta$year, 
+            "<br>Number of applications: ", dta$numtransapp_total,
+            "<br>Relative number against the reference: ", dta$relnumtransapp_total),    
+        color = ~college)%>%
+    layout(
+        title = "Relative number of transfer applications, total", 
+        yaxis = list(title = "Ratio (reference = value in the latest year)",  
+                     range=c(0, 3), 
+                     showgrid = FALSE, 
+                     showticklabels = TRUE),
+        shapes = list(hline(1), vline(2021)),
+        xaxis = list(title = "Year", showgrid = FALSE , range=c(2013, 2023))
+    )
+```
+
+```{r plot_relnumtransadmit_total}
+dta%>%
+    #filter(count>=2)%>%
+    plot_ly(
+        x = ~year, y = ~relnumtransadmit_total,
+        type="scatter", mode = 'lines+markers', 
+        hovertemplate = paste0(
+            dta$college,       
+            "<br>Year: ", dta$year, 
+            "<br>Number of admitted students: ", dta$numtransadmit_total,
+            "<br>Relative number against the reference: ", dta$relnumtransadmit_total),     
+        color = ~college)%>%
+    layout(
+        title = "Relative number of admitted transfer students, total", 
+        yaxis = list(title = "Ratio (reference = value in the latest year)",  
+                     range=c(0, 3), 
+                     showgrid = FALSE, 
+                     showticklabels = TRUE),
+        shapes = list(hline(1), vline(2021)),
+        xaxis = list(title = "Year", showgrid = FALSE , range=c(2013, 2023))
+    )
+```
+
+```{r plot_relnumtransenroll_total}
+dta%>%
+    #filter(count>=2)%>%
+    plot_ly(
+        x = ~year, y = ~relnumtransenroll_total,
+        type="scatter", mode = 'lines+markers', 
+        hovertemplate = paste0(
+            dta$college,       
+            "<br>Year: ", dta$year, 
+            "<br>Number of enrolled students: ", dta$numtransenroll_total,
+            "<br>Relative number against the reference: ", dta$relnumtransenroll_total),     
+        color = ~college)%>%
+    layout(
+        title = "Relative number of enrolled transfer students, total", 
+        yaxis = list(title = "Ratio (reference = value in the latest year)",  
+                     range=c(0, 3), 
+                     showgrid = FALSE, 
+                     showticklabels = TRUE),
+        shapes = list(hline(1), vline(2021)),
+        xaxis = list(title = "Year", showgrid = FALSE , range=c(2013, 2023))
+    )
+```
+
+### 1.4 Do colleges receive more qualified students than before? Is that part of the puzzle? 
+#### 1.4.1 What are trends of SAT scores among those enrolled and submitted the score? 
+* <span style="color: #74add1;">25th percentile</span> SAT score. <span style="color: #e0f3f8;">Lighter colors are for years when standardized test scores were neither "important for admission decision" nor "required."</span> 
+* <span style="color: #f46d43;">75th percentile</span> SAT score. <span style="color: #fee090;">Lighter colors are for years when standardized test scores were neither "important for admission decision" nor "required."</span>
+
+```{r plot_SATtrends}
+panel <- . %>% 
+    plot_ly(
+        x = ~year, 
+        type="scatter", mode = 'lines+markers', 
+        y = ~sat25, 
+        line = list(color = '#74add1'),
+        marker = list(color = '#74add1'))%>%
+    add_trace(
+        y = ~sat25optional, 
+        line = list(color = '#e0f3f8'),
+        marker = list(color = '#e0f3f8'))%>%    
+    add_trace(
+        y = ~sat75, 
+        line = list(color = '#f46d43'),
+        marker = list(color = '#f46d43'))%>%    
+    add_trace(
+        y = ~sat75optional, 
+        line = list(color = '#fee090'),
+        marker = list(color = '#fee090'))%>%        
+    add_annotations(
+        text = ~unique(college),
+        x = 0.5, y = 0.9, xref = "paper", yref = "paper",    
+        xanchor = "center", yanchor = "bottom", showarrow = FALSE,
+        font = list(size = 12)
+        ) %>%        
+    layout(
+        title = "SAT submission and scores", 
+        shapes = list(vline(2021), hline(1400)),
+        yaxis = list(title = "SAT score",  
+                     range=c(1100, 1600), 
+                     showgrid = FALSE, 
+                     showticklabels = TRUE, tickfont = list(size=9)),
+        xaxis = list(title = "Year", showgrid = FALSE , range=c(2013, 2023))
+    )
+
+dtafig<-dta%>%filter(count>=2)
+
+dtafig%>%
+    group_by(college) %>%
+    do(p = panel(.)) %>%
+    subplot(nrows = ceiling(length(unique(dtafig$college))/5), 
+            shareX = TRUE, shareY = TRUE) %>% 
+    layout(
+        title = "",
+        showlegend = FALSE)
+```      
+
+```{r plot_SATtrends2, eval=FALSE}
+ay <- list(title = "Percent of enrolled students", 
+                     overlaying = "y", 
+                     range=c(0, 100), 
+                     showgrid = FALSE, 
+                     showticklabels = TRUE, 
+                     tickfont = list(color = "gray", size=9),
+                     side = "right")
+panel <- . %>% 
+    plot_ly(
+        x = ~year, 
+        type="scatter", mode = 'lines+markers', 
+        y = ~sat25, 
+        line = list(color = '#74add1'),
+        marker = list(color = '#74add1'))%>%
+    add_trace(
+        y = ~pct_submitsat, 
+        line = list(color = 'darkgray'),
+        marker = list(color = 'darkgray'),
+        yaxis = "y2" )%>%
+    add_annotations(
+        text = ~unique(college),
+        x = 0.5, y = 0.9, xref = "paper", yref = "paper",    
+        xanchor = "center", yanchor = "bottom", showarrow = FALSE,
+        font = list(size = 12)
+        ) %>%        
+    layout(
+        title = "SAT submission and scores", 
+        shapes = list(vline(2021)),
+        yaxis = list(title = "<b>SAT score</b>",  
+                     range=c(1100, 1600), 
+                     showgrid = FALSE, 
+                     showticklabels = TRUE, tickfont = list(size=9),
+                     side="left"),
+        yaxis2 = ay,    
+        xaxis = list(title = "Year", showgrid = FALSE , range=c(2013, 2023))
+    )
+
+dtafig<-dta%>%filter(count>=2)
+
+dtafig%>%
+    group_by(college) %>%
+    do(p = panel(.)) %>%
+    subplot(nrows = ceiling(length(unique(dtafig$college))/5), 
+            shareX = TRUE, shareY = TRUE) %>% 
+    layout(
+        title = "",
+        showlegend = FALSE)
+```      
+
+```{r plot_SATtrends3, eval=FALSE}
+ay <- list(title = "Percent of enrolled students", 
+                     overlaying = "y", 
+                     range=c(0, 100), 
+                     showgrid = FALSE, 
+                     showticklabels = TRUE, 
+                     tickfont = list(color = "gray", size=9),
+                     side = "right")
+dta%>%
+    filter(college=="Bowdain")%>%
+    plot_ly(
+        x = ~year, 
+        type="scatter", mode = 'lines+markers', 
+        y = ~sat25, 
+        line = list(color = '#74add1'),
+        marker = list(color = '#74add1'))%>%
+    add_trace(
+        y = ~sat25optional, 
+        line = list(color = '#e0f3f8'),
+        marker = list(color = '#e0f3f8'))%>%    
+    add_trace(
+        y = ~sat75, 
+        line = list(color = '#f46d43'),
+        marker = list(color = '#f46d43'))%>%    
+    add_trace(
+        y = ~sat75optional, 
+        line = list(color = '#fee090'),
+        marker = list(color = '#fee090'))%>%        
+    add_trace(
+        y = ~pct_submitsat, 
+        line = list(color = 'darkgray'),
+        marker = list(color = 'darkgray'),
+        yaxis = "y2" )%>%
+    add_annotations(
+        text = ~unique(college),
+        x = 0.5, y = 0.9, xref = "paper", yref = "paper",    
+        xanchor = "center", yanchor = "bottom", showarrow = FALSE,
+        font = list(size = 12)
+        ) %>%        
+    layout(
+        title = "SAT submission and scores", 
+        shapes = list(vline(2021)),
+        yaxis = list(title = "<b>SAT score</b>",  
+                     range=c(1100, 1600), 
+                     showgrid = FALSE, 
+                     showticklabels = TRUE, tickfont = list(size=9),
+                     side="left"),
+        yaxis2 = ay,    
+        xaxis = list(title = "Year", showgrid = FALSE , range=c(2013, 2023))
+        
+    )
+
+```      
+
+#### 1.4.2 What are trends of SAT score submission
+* <span style="color: 'lightgray';">Percent of enrolled students who submitted SAT score.</span> <span style="color: 'lightgray';">Lighter colors are for years when standardized test scores were neither "important for admission decision" nor "required."</span>
+
+```{r plot_submitsat}
+panel <- . %>% 
+    plot_ly(
+        x = ~year, y = ~pct_submitsat, 
+        type="scatter", mode = 'lines+markers', 
+        line = list(color = 'darkgray'),
+        marker = list(color = 'darkgray'))%>%
+    add_trace(
+        y = ~pct_submitsatoptional, 
+        line = list(color = 'lightgray'),
+        marker = list(color = 'lightgray'))%>%
+    add_annotations(
+        text = ~unique(college),
+        x = 0.5, y = 0.9, xref = "paper", yref = "paper",    
+        xanchor = "center", yanchor = "bottom", showarrow = FALSE,
+        font = list(size = 12)
+        ) %>%        
+    layout(
+        title = "", 
+        shapes = list(vline(2021)),
+        yaxis = list(title = "Percent of enrolled students",  
+                     range=c(0,100), 
+                     showgrid = FALSE, 
+                     showticklabels = TRUE, tickfont = list(size=9)),
+        xaxis = list(title = "Year", showgrid = FALSE , range=c(2013, 2023))
+    )
+
+dtafig<-dta%>%filter(count>=2)
+
+dtafig%>%
+    group_by(college) %>%
+    do(p = panel(.)) %>%
+    subplot(nrows = ceiling(length(unique(dtafig$college))/5), 
+            shareX = TRUE, shareY = TRUE) %>% 
+    layout(
+        title = "",
+        showlegend = FALSE)
+```      
+
+#### 1.4.3 What are trends of class rank and GPA? 
+* Percent of enrolled students <span style="color: #74add1;">who were within the top 10th percentile in their class in high school</span>   
+* Percent of enrolled students <span style="color: 'gray';">who submitted class rank</span> 
+```{r plot_top10th}
+panel <- . %>% 
+    plot_ly(
+        x = ~year, y = ~pct_top10pct, 
+        type="scatter", mode = 'lines+markers', 
+        name="pct_top10pct",
+        line = list(color = '#74add1'),
+        marker = list(color = '#74add1'))%>%
+    add_annotations(
+        text = ~unique(college),
+        x = 0.5, y = 0.9, xref = "paper", yref = "paper",    
+        xanchor = "center", yanchor = "bottom", showarrow = FALSE,
+        font = list(size = 12)
+        ) %>%        
+    layout(
+        title = "Class rank within top 10 percent, trends", 
+        shapes = list(vline(2021), hline(80)),
+        yaxis = list(title = "Percent of enrolled students",  
+                     range=c(0,100), 
+                     showgrid = FALSE, 
+                     showticklabels = TRUE, tickfont = list(size=9)),
+        xaxis = list(title = "Year", showgrid = FALSE , range=c(2013, 2023))
+    )
+
+dtafig<-dta%>%filter(count>=2)
+
+dtafig%>%
+    group_by(college) %>%
+    do(p = panel(.)) %>%
+    subplot(nrows = ceiling(length(unique(dtafig$college))/5), 
+            shareX = TRUE, shareY = TRUE) %>% 
+    layout(
+        title = "",
+        showlegend = FALSE)
+```      
+* Percent of enrolled students <span style="color: #74add1;">whose GPA was 4.0</span> 
+* Percent of enrolled students <span style="color: 'gray';">who submitted GPA</span> 
+```{r plot_gpa4}
+panel <- . %>% 
+    plot_ly(
+        x = ~year, y = ~pct_gpa4, 
+        type="scatter", mode = 'lines+markers', 
+        line = list(color = '#74add1'),
+        marker = list(color = '#74add1'))%>%
+    add_annotations(
+        text = ~unique(college),
+        x = 0.5, y = 0.9, xref = "paper", yref = "paper",    
+        xanchor = "center", yanchor = "bottom", showarrow = FALSE,
+        font = list(size = 12)
+        ) %>%        
+    layout(
+        title = "GPA 4, trends", 
+        shapes = list(vline(2021)),
+        yaxis = list(title = "Percent of enrolled students",  
+                     range=c(0,100), 
+                     showgrid = FALSE, 
+                     showticklabels = TRUE, tickfont = list(size=9)),
+        xaxis = list(title = "Year", showgrid = FALSE , range=c(2013, 2023))
+    )
+
+dtafig<-dta%>%filter(count>=2)
+
+dtafig%>%
+    group_by(college) %>%
+    do(p = panel(.)) %>%
+    subplot(nrows = ceiling(length(unique(dtafig$college))/5), 
+            shareX = TRUE, shareY = TRUE) %>% 
+    layout(
+        title = "",
+        showlegend = FALSE)
+```      
+
+## 2. Impact of low admission rates on student population profile? 
+### 2.1 Percent of early decision went up in many? 
+
+```{r plot_numadmit_ed}
+dta%>%
+    filter((earlydecision==1 & count>=2) | 
+               (is.na(numapp_ed)==FALSE & count>=2))%>%
+    plot_ly(
+        x = ~year, y = ~pct_enroll_ed,
+        type="scatter", mode = 'lines+markers', 
+        color = ~college)%>%
+    layout(
+        title = "", 
+        shapes = list(hline(50), vline(2021)),
+        yaxis = list(title = "Percent of enrolled students",  
+                     range=c(0, 100), 
+                     showgrid = FALSE, 
+                     showticklabels = TRUE),
+        xaxis = list(title = "Year", showgrid = FALSE , range=c(2013, 2023))
+    )
+```
+
+### 2.2 How about percent of Asian or international students among total undergraduate? 
+<span style="color: #74add1;">Asian</span> students  
+<span style="color: #f46d43;">International</span> students
+
+```{r plot_pct_under_asian_nra}
+panel <- . %>% 
+    plot_ly(
+        x = ~year, y = ~pct_under_asian,
+        type="scatter", mode = 'lines+markers', 
+        line = list(color = '#74add1'),
+        marker = list(color = '#74add1'))%>%
+    add_trace(
+        y = ~pct_under_nra,
+        line = list(color = '#f46d43'),
+        marker = list(color = '#f46d43'))%>%
+    add_annotations(
+        text = ~unique(college),
+        x = 0.5, y = 0.9, xref = "paper", yref = "paper",    
+        xanchor = "center", yanchor = "bottom", showarrow = FALSE,
+        font = list(size = 12)
+        ) %>%  
+    layout(
+        title = "", 
+        shapes = list(vline(2021), hline(20)),
+        yaxis = list(title = "Percent of enrolled students",  
+                     range=c(0, 40), 
+                     showgrid = FALSE, 
+                     showticklabels = TRUE),
+        xaxis = list(title = "Year", showgrid = FALSE , range=c(2013, 2023))
+    )
+
+dtafig<-dta%>%filter(count>=2)
+
+dtafig%>%
+    group_by(college) %>%
+    do(p = panel(.)) %>%
+    subplot(nrows = ceiling(length(unique(dtafig$college))/5), 
+            shareX = TRUE, shareY = TRUE) %>%  
+    layout(
+        title = "",
+        showlegend = FALSE)
+```
+
+### 2.3 How about ratio of men and women among full-time, undergraduate students?
+* Gender ratio: number of male students / number of female students - among full time undergraduate students who reported gender 
+```{r plot_ratio_gender}
+dta%>% 
+    filter(women!=1)%>%    
+    plot_ly(
+        x = ~year, y = ~ratio_underft_mf,
+        type="scatter", mode = 'lines+markers', 
+        color = ~college)%>%
+    layout(
+        title = "", 
+        shapes = list(hline(1), vline(2021)),
+        yaxis = list(title = "Ratio",  
+                     range=c(0, 1.5), 
+                     showgrid = FALSE, 
+                     showticklabels = TRUE),
+        xaxis = list(title = "Year", showgrid = FALSE , range=c(2013, 2023))
+    )
+```
+
+### 2.4 Would retention rate go up? 
+```{r plot_retention}
+dta%>% 
+    plot_ly(
+        x = ~year, y = ~pct_retention,
+        type="scatter", mode = 'lines+markers', 
+        color = ~college)%>%
+    layout(
+        title = "", 
+        shapes = list(hline(90), hline(95), vline(2021)),
+        yaxis = list(title = "Percent",  
+                     range=c(70, 100), 
+                     showgrid = FALSE, 
+                     showticklabels = TRUE),
+        xaxis = list(title = "Year", showgrid = FALSE , range=c(2013, 2023))
+    )
+```
+
+## 3. Financial aid in the latest year 
+Now including very wealthy schools for comparison purposes...
+
+```{r, eval=FALSE}
+length(unique(dtaall_latest$college))
+
+dtafig<-dtaall_latest%>%
+    select(college, year, tuition, totalcost, contains(c("nba", "amount")))
+length(unique(dtafig$college))
+
+dtafig<-ddply(dtafig, c("pct_nba_received"))
+length(unique(dtafig$college))
+
+dtafig$college<-factor(dtafig$college, 
+                      levels = unique(dtafig$college)
+                      [order(dtafig$pct_nba_received, 
+                             decreasing = FALSE)])
+length(unique(dtafig$college))
+#https://stackoverflow.com/questions/40224892/r-plotly-barplot-sort-by-value
+
+dtafig$college<-factor(dtafig$college, 
+                      levels = length(unique(dtafig$college))
+                      [order(dtafig$pct_nba_received, 
+                             decreasing = FALSE)])
+length(unique(dtafig$college))
+
+dtafig<-dtaall_latest%>%
+    arrange(pct_nba_received)%>%
+    mutate(college = factor(college, unique(college)))
+length(unique(dtafig$college))
+#https://stackoverflow.com/questions/10758243/sort-a-factor-based-on-value-in-one-or-more-other-columns
+#data$Animals <- factor(data$Animals, 
+#                       levels = unique(data$Animals)
+#                       [order(data$Count, decreasing = TRUE)])
+
+dtafig<-dtaall_latest%>%
+    mutate(
+        collegefactor = factor(college,
+                               levels=unique(college[order(pct_nba_received,
+                                                           college)]),
+                               ordered=TRUE)
+    )
+length(unique(dtafig$college))
+#https://stackoverflow.com/questions/10758243/sort-a-factor-based-on-value-in-one-or-more-other-columns
+```
+
+### 3.1 Percent of enrolled students who who received any NBA and the average amount (among those who received)
+Note: Vertical grey line is the average tuition among all colleges included in this note. 
+#### 3.1.1 Any NBA 
+```{r plot_pct_amount_nba, fig.height=7}
+dtafig<-dtaall_latest
+averagetuition<-mean(dtafig$tuition, na.rm = TRUE)
+
+fig1<-dtafig%>%
+    plot_ly(
+        y = ~college,
+        type="bar", 
+        x = ~pct_nba_received, 
+        text = ~pct_nba_received,  textposition="outside",
+        name="Received NBA",
+        line = list(color = '#084594'), marker = list(color = '#084594'))%>%    
+    layout(
+        title = "", 
+        xaxis = list(title = "Percent enrolled students receiving NBA",  
+                     range=c(0, 100), 
+                     showgrid = FALSE, showticklabels = TRUE),
+        yaxis = list(title = "",
+                     tickfont = list(size=9),
+                     categoryorder = "total descending"),
+        showlegend = FALSE
+    )
+
+fig2<-dtafig%>%
+    plot_ly(
+        y = ~college,
+        type="bar", 
+        x = ~amount_nba,
+        marker = list(color = '#9ecae1'),
+        hovertemplate = paste0(
+                  dtafig$pct_nba_received, "% received NBA",
+                  '<br>Average amount: $', dtafig$amount_nba,
+                  '<br>Tuition: $', dtafig$tuition))%>%
+    layout(
+        title = "", 
+        xaxis = list(title = "Average NBA ($)", range=c(0, 80000),  
+                     showgrid = FALSE, showticklabels = TRUE),
+        yaxis = list(title = "", 
+                     tickfont = list(size=9),
+                     categoryorder = "total descending"),
+        shapes = list(vline(averagetuition)),
+        showlegend = FALSE
+    )
+
+subplot(fig1, fig2)
+
+```
+
+#### 3.1.2 Grant/scholarship NBA
+```{r plot_pct_amount_nba_grant, fig.height=7}
+dtafig<-dtaall_latest
+averagetuition<-mean(dtafig$tuition, na.rm = TRUE)
+
+fig1<-dtafig%>%
+    plot_ly(
+        y = ~college,
+        type="bar", 
+        x = ~pct_nba_received_grant, 
+        text = ~pct_nba_received_grant,  textposition="outside",
+        name="Received NBA, grant/scholarship",
+        line = list(color = '#084594'), marker = list(color = '#084594'))%>%    
+    layout(
+        title = "", 
+        xaxis = list(title = "Percent enrolled students receiving NBA",  
+                     range=c(0, 100), 
+                     showgrid = FALSE, showticklabels = TRUE),
+        yaxis = list(title = "",
+                     tickfont = list(size=9),
+                     categoryorder = "total descending"),
+        showlegend = FALSE
+    )
+
+fig2<-dtafig%>%
+    plot_ly(
+        y = ~college,
+        type="bar", 
+        x = ~amount_nba_grant,
+        marker = list(color = '#9ecae1'),
+        hovertemplate = paste0(
+                  dtafig$pct_nba_received_grant, "% received NBA, grant/scholarship",
+                  '<br>Average amount, grant: $', dtafig$amount_nba_grant,
+                  '<br>Tuition: $', dtafig$tuition))%>%
+    layout(
+        title = "", 
+        xaxis = list(title = "Average NBA, grant/scholarship ($)", range=c(0, 80000),  
+                     showgrid = FALSE, showticklabels = TRUE),
+        yaxis = list(title = "", 
+                     tickfont = list(size=9),
+                     categoryorder = "total descending"),
+        shapes = list(vline(averagetuition)),
+        showlegend = FALSE
+    )
+
+subplot(fig1, fig2)
+
+```
+
+#### 3.1.3 Any vs. grant/scholarship NBA
+```{r plot_pct_amount_nba_any_vs_grant, fig.height=7}
+dtafig<-dtaall_latest
+averagetuition<-mean(dtafig$tuition, na.rm = TRUE)
+
+fig1<-dtafig%>%
+    plot_ly(
+        y = ~college,
+        type="bar", 
+        x = ~pct_nba_received, 
+        text = ~pct_nba_received,  textposition="outside",
+        name="Received NBA",
+        line = list(color = '#6188BA'), marker = list(color = '#6188BA'))%>%    
+    add_trace(
+        x = ~pct_nba_received_grant, 
+        text = ~pct_nba_received_grant,  textposition="outside",
+        name="Received NBA, grant/scholarship",
+        line = list(color = '#084594'), marker = list(color = '#084594'))%>% 
+    layout(
+        title = "", 
+        xaxis = list(title = "Percent enrolled students receiving NBA",  
+                     range=c(0, 100), 
+                     showgrid = FALSE, showticklabels = TRUE),
+        yaxis = list(title = "",
+                     tickfont = list(size=9),
+                     categoryorder = "total descending"),
+        showlegend = FALSE
+    )
+
+fig2<-dtafig%>%
+    plot_ly(
+        y = ~college,
+        type="bar", 
+        x = ~amount_nba,
+        marker = list(color = '#D7E9F3'),
+        hovertemplate = paste0(
+                  dtafig$pct_nba_received, "% received NBA, any",
+                  '<br>Average amount, any: $', dtafig$amount_nba,
+                  '<br>Tuition: $', dtafig$tuition))%>%
+    add_trace(
+        x = ~amount_nba_grant,
+        marker = list(color = '#9ecae1'),
+        hovertemplate = paste0(
+                  dtafig$pct_nba_received_grant, "% received NBA, grant/scholarship",
+                  '<br>Average amount, grant: $', dtafig$amount_nba_grant,
+                  '<br>Tuition: $', dtafig$tuition))%>%
+    layout(
+        title = "", 
+        xaxis = list(title = "Average NBA, grant/scholarship ($)", range=c(0, 80000),  
+                     showgrid = FALSE, showticklabels = TRUE),
+        yaxis = list(title = "", 
+                     tickfont = list(size=9),
+                     categoryorder = "total descending"),
+        shapes = list(vline(averagetuition)),
+        showlegend = FALSE
+    )
+
+subplot(fig1, fig2)
+
+```
+
+### 3.2 Percent of enrolled students who who received non-NBA and the average amount (among those who received)
+Note: For the average non-NBA amount, the figure shows only school where 5 or higher percent of students received the aid. Vertical grey line is the average tuition among all colleges included in this note. 
+
+```{r plot_pct_amount_nonnba, fig.height=7}
+dtafig<-dtaall_latest
+
+fig1<-dtafig%>%
+    plot_ly(
+        y = ~college,
+        type="bar", 
+        x = ~pct_nonnba_received,
+        text = ~pct_nonnba_received, textposition="outside",
+        line = list(color = '#8c2d04'), marker = list(color = '#8c2d04'))%>%    
+    layout(
+        title = "", 
+        xaxis = list(title = "Percent enrolled students receiving non-NBA",  
+                     range=c(0, 100), 
+                     showgrid = FALSE, showticklabels = TRUE),
+        yaxis = list(title = "",
+                     tickfont = list(size=9),
+                     categoryorder = "total descending"),
+        showlegend = FALSE
+    )
+
+dtafig<-dtafig%>%filter(pct_nonnba_received>=5)
+
+fig2<-dtafig%>%
+    plot_ly(
+        y = ~college,
+        type="bar", 
+        x = ~amount_nonnba, 
+        marker = list(color = '#fdae6b'),
+        hovertemplate = paste0(
+                  dtafig$pct_nonnba_received, "% received non-NBA",
+                  '<br>Average amount: $', dtafig$amount_nonnba,
+                  '<br>Tuition: $', dtafig$tuition))%>%
+    layout(
+        title = "", 
+        xaxis = list(title = "Average non-NBA ($)", range=c(0, 80000),  
+                     showgrid = FALSE, showticklabels = TRUE),
+        yaxis = list(title = "", 
+                     tickfont = list(size=9),
+                     categoryorder = "total descending"),
+        shapes = list(vline(averagetuition)),
+        showlegend = FALSE
+    )
+
+subplot(fig1, fig2)
+```
+
+```{r plot_pct_aid, fig.height=7, results='hide'}
+### 3.1 Percent of enrolled students who applied for NBA, who were determined to have need, and who received NBA
+dtafig<-dtaall_latest%>%
+    mutate(
+        collegefactor = factor(college,
+                               levels=unique(college[order(pct_nba_received,
+                                                           college)]),
+                               ordered=TRUE)
+    )
+
+dtafig%>%
+    plot_ly(
+        y = ~collegefactor,
+        type="bar", 
+        x = ~pct_nba_received, 
+        name="Received NBA",
+        line = list(color = '#084594'), marker = list(color = '#084594'))%>%
+    add_trace(
+        x = ~pct_nba_determined, 
+        name="Determined to have need",
+        line = list(color = '#4292c6'), marker = list(color = '#4292c6'))%>%    
+    add_trace(
+        x = ~pct_nba_applied, 
+        name="Applied for NBA",
+        line = list(color = '#9ecae1'), marker = list(color = '#9ecae1'))%>%  
+    add_trace(
+        x = ~pct_nonnba_received, 
+        name="Received Non-NBA",
+        line = list(color = '#8c2d04'), marker = list(color = '#8c2d04'))%>%       
+    layout(
+        title = "", 
+        xaxis = list(title = "Percent",  
+                     range=c(0, 100), 
+                     showgrid = FALSE, showticklabels = TRUE),
+        yaxis = list(title = "",
+                     categoryorder = "total descending"), 
+        #shapes = list(vline(50), vline(20)),
+        legend = list(orientation = 'v', 
+                      x = 1.05, y = 0.5)
+    )
+
+```
+
+```{r plot_tuition_nonnba, results='hide'}
+dtafig<-dtaall_latest%>%filter(pct_nonnba_received>=10)
+
+#dtafig$college<-factor(dtafig$college, 
+#                      levels = length(unique(dtafig$college))
+#                      [order(dtafig$amount_nonnba, decreasing = FALSE)])
+
+dtafig%>%
+    plot_ly(
+        y = ~college,
+        type="bar", 
+        x = ~tuition, 
+        name="Tuition *",
+        line = list(color = '#9ecae1'),
+        marker = list(color = '#9ecae1'))%>%    
+    #add_trace(x = ~totalcost, 
+    #        name="Total cost *",
+    #        line = list(color = '#4292c6'),
+    #        marker = list(color = '#4292c6'))%>%
+    add_trace(x = ~amount_nonnba, 
+              name="Non NBA, average",
+              line = list(color = '#8c2d04'),
+              marker = list(color = '#8c2d04'),
+              hovertemplate = paste0(
+                  dtafig$pct_nonnba_received, "% received non-NBA",
+                  '<br>Average amount: $', dtafig$amount_nonnba)
+              )%>%
+    layout(
+        title = "", 
+        xaxis = list(title = "",  
+                     showgrid = FALSE, showticklabels = TRUE),
+        yaxis = list(title = ""),
+        legend = list(orientation = 'v', 
+                      x = 1.05, y = 0.5)
+    )
+
+```
+
+```{r plot_tuition_nba, fig.height=7, results='hide'}
+dtafig<-dtaall_latest
+
+#dtafig$college<-factor(dtafig$college, 
+#                      levels = length(unique(dtafig$college))
+#                      [order(dtafig$amount_nba, decreasing = FALSE)])
+
+dtafig%>%
+    filter(year==yearlatest)%>%
+    plot_ly(
+        y = ~college,
+        type="bar", 
+        x = ~tuition, 
+        name="Tuition *",
+        line = list(color = '#9ecae1'),
+        marker = list(color = '#9ecae1'))%>%    
+    #add_trace(x = ~totalcost, 
+    #        name="Total cost *",
+    #        line = list(color = '#4292c6'),
+    #        marker = list(color = '#4292c6'))%>%
+    add_trace(x = ~amount_nba, 
+              name="NBA, average",
+              line = list(color = '#084594'),
+              marker = list(color = '#084594'),
+              hovertemplate = paste0(
+                  dtafig$pct_nba_received, "% received NBA",
+                  '<br>Average amount: $', dtafig$amount_nba))%>%
+    layout(
+        title = "", 
+        xaxis = list(title = "",  
+                     showgrid = FALSE, showticklabels = TRUE),
+        yaxis = list(title = ""),
+        legend = list(orientation = 'v', 
+                      x = 1.05, y = 0.5)
+    )
+
+```
+
+```{r plot_pct_neetmet, results='hide'}
+#### 3.3.1 Percent of need met (among those who received)
+#Note:  
+#1. Only among schools where 100% of need was *not* met
+dtafig<-dtaall_latest%>%filter(pct_needmet<100)
+
+#dtafig$college<-factor(dtafig$college, 
+#                      levels = length(unique(dtafig$college))
+#                      [order(dtafig$pct_needmet, decreasing = FALSE)])
+
+dtafig%>%
+    plot_ly(
+        y = ~college,
+        type="bar", 
+        x = ~pct_needmet)%>%
+    layout(
+        title = "", 
+        xaxis = list(title = "Percent",  
+                     range=c(0, 100), 
+                     showgrid = FALSE, showticklabels = TRUE),
+        yaxis = list(title = "",
+                     categoryorder = "total descending")
+    )
+
+```
+
+## 4. Admission review criteria
+### 4.1 Academic criteria
+```{r plot_heatmap_academic_criteria, fig.height=7}
+dtafig<-dta%>%
+    filter(year==yearlatest)%>%
+    select(college, starts_with(c("num_aca_")))
+
+dtafig<-as.data.frame(dtafig)
+
+indicatorlist<-colnames(dtafig[2:ncol(dtafig)]) 
+
+dtafiglong<-reshape(dtafig, 
+        direction='long', 
+        varying=colnames(dtafig[2:ncol(dtafig)]), 
+        timevar="criteria",
+        times=indicatorlist,
+        v.names=c("value"),
+        idvar="college"
+        )%>%
+    mutate(criteria = sub("num_aca_", "", criteria))
+
+dtafiglong%>%
+    plot_ly(
+        x = ~criteria, y = ~college, z = ~value, 
+        #colors = colorRamp(c("red", "green")),
+        zauto = F, zmin = 0, zmax = 100,
+        colors = brewer.pal(20,"RdYlGn"),
+        type = "heatmap",
+        hoverinfo = 'text',
+        text = ~paste(
+            "Criterion:", dtafiglong$criteria,
+            "<br>College:", dtafiglong$college
+            #,
+            #"<br>Value:",  dtafiglong$value
+            )
+        )%>%
+    layout(
+        xaxis=list(title = "", showgrid = FALSE), 
+        yaxis=list(title = "", showgrid = FALSE, tickfont = list(size=9))
+    )%>% 
+    hide_colorbar()
+
+```
+Legend:  
+* <span style="color: #006837;">Very important</span>   
+* <span style="color: #66bd63;">Important</span>   
+* <span style="color: #d9ef8b;">Considered (or considered if submitted)</span>    
+* <span style="color: #fee08b;">Not considered</span>
+
+### 4.2 Non-academic criteria
+```{r plot_heatmap_nonacademic_criteria, fig.height=7}
+dtafig<-dta%>%
+    filter(year==yearlatest)%>%
+    select(college, starts_with(c("num_acna_")))
+
+dtafig<-as.data.frame(dtafig)
+
+indicatorlist<-colnames(dtafig[2:ncol(dtafig)]) 
+
+dtafiglong<-reshape(dtafig, 
+        direction='long', 
+        varying=colnames(dtafig[2:ncol(dtafig)]), 
+        timevar="criteria",
+        times=indicatorlist,
+        v.names=c("value"),
+        idvar="college"
+        )%>%
+    mutate(criteria = sub("num_acna_", "", criteria))
+
+dtafiglong%>%
+    plot_ly(
+        x = ~criteria, y = ~college, z = ~value, 
+        #colors = colorRamp(c("red", "green")),
+        zauto = F, zmin = 0, zmax = 100,
+        colors = brewer.pal(20,"RdYlGn"),
+        type = "heatmap",
+        hoverinfo = 'text',
+        text = ~paste(
+            "Criterion:", dtafiglong$criteria,
+            "<br>College:", dtafiglong$college
+            #,
+            #"<br>Value:",  dtafiglong$value
+            )
+        )%>%
+    layout(
+        #showscale = FALSE, 
+        xaxis=list(title = "", showgrid = FALSE), 
+        yaxis=list(title = "", showgrid = FALSE, tickfont = list(size=9)) 
+    )%>% 
+    hide_colorbar()
+
+```
+
+Legend:  
+* <span style="color: #006837;">Very important</span>   
+* <span style="color: #66bd63;">Important</span>   
+* <span style="color: #d9ef8b;">Considered (or considered if submitted)</span>    
+* <span style="color: #fee08b;">Not considered</span>
+
