@@ -1,0 +1,552 @@
+---
+output:
+  html_document:
+    toc: true
+    toc_depth: 5
+    toc_float: true
+---
+
+```{r intro, echo=FALSE, results="hide"}
+knitr::opts_chunk$set(echo=TRUE, 
+                      message=FALSE, 
+                      comment = "", 
+                      warning=FALSE, 
+                      results="hide") 
+
+date<-as.Date(Sys.time(	), format='%d%b%Y')
+
+suppressWarnings(suppressMessages(library(dplyr)))
+suppressWarnings(suppressMessages(library(tidyr)))
+suppressWarnings(suppressMessages(library(pdftools)))
+suppressWarnings(suppressMessages(library(readr)))
+suppressWarnings(suppressMessages(library(stringr)))
+
+suppressWarnings(suppressMessages(library(readxl)))
+suppressWarnings(suppressMessages(library(writexl)))
+```
+
+```{r import}
+# import ################
+path<-c(
+    "https://oir.brown.edu/sites/default/files/2020-04/CDS_2022_2023.pdf", 
+    "https://oir.brown.edu/sites/default/files/2020-04/CDS_2021_2022_0.pdf",
+    "https://oir.brown.edu/sites/default/files/2020-04/CDS_2020_2021_Final2_0.pdf", 
+    "https://oir.brown.edu/sites/default/files/2020-04/CDS_2019_2020.pdf", 
+    "https://oir.brown.edu/sites/default/files/2020-04/CDS_2018_2019_FINAL.pdf", 
+    "https://oir.brown.edu/sites/default/files/2020-04/CDS_2017-2018.pdf"
+    )
+
+pdfraw1<-pdf_text(path[1]) %>% read_lines()%>% as.data.frame()
+pdfraw2<-pdf_text(path[2]) %>% read_lines()%>% as.data.frame()
+pdfraw3<-pdf_text(path[3]) %>% read_lines()%>% as.data.frame()
+pdfraw4<-pdf_text(path[4]) %>% read_lines()%>% as.data.frame()
+pdfraw5<-pdf_text(path[5]) %>% read_lines()%>% as.data.frame()
+pdfraw6<-pdf_text(path[6]) %>% read_lines()%>% as.data.frame()
+
+```
+
+```{r check_imported_pdf}
+pdf1<-pdfraw1
+pdf2<-pdfraw2
+pdf3<-pdfraw3
+pdf4<-pdfraw4
+pdf5<-pdfraw5
+pdf6<-pdfraw6
+
+#listofdata<-list(pdf1, pdf2, pdf3, pdf4, pdf5, pdf6)
+listofdata<-list(pdf6, pdf5, pdf4, pdf3, pdf2, pdf1)
+
+for(i in 1:length(listofdata)){
+    print(dim(listofdata[[i]]))    
+}    
+```
+
+```{r check_loop, results='asis', eval=FALSE}
+listofdata<-list(pdf1, pdf2, pdf3, pdf4, pdf5, pdf6)
+
+for(i in 1:length(listofdata)){
+pdf<-as.data.frame(listofdata[[i]])
+    
+    colnames(pdf)<-c("report")
+    pdf$report<-str_trim(pdf$report)
+    pdf$lag_report<-lag(pdf$report)
+    
+    # year
+    year<-str_trim(gsub("Common Data Set", "", pdf$report[1]))
+    year<-as.numeric(substr(year, 1, 4))
+    
+    # college
+    temp<-pdf%>%
+        filter(grepl("Name of College/University", report)==TRUE)%>%
+        mutate(year=year)
+    print(temp$report[1])
+    
+    # SAT composite
+    temp<-pdf%>%filter(grepl("SAT Composite", report)==TRUE & grepl("Assessment", lag_report)==TRUE)
+    strings <- temp$report[1]%>%str_split("(?<=\\s)(?=\\S)")%>%unlist
+    print(strings)
+    
+ 
+}
+```        
+
+```{r note, eval=FALSE}
+#Check loop items! 
+
+    #Math
+    temp<-pdf%>%filter(grepl("SAT Math", report)==TRUE)%>%
+        mutate(report=str_trim(gsub("C9", "", report)))
+    strings <- temp$report[1]%>%str_split("(?<=\\s)(?=\\S)")%>%unlist
+    strings
+    print(grepl('^SAT Math', temp$report[1]))
+    
+    #reading and writing 
+    temp<-pdf%>%filter(grepl("SAT Evidence-Based Reading", lag_report)==TRUE)%>%
+        mutate(report=str_trim(gsub("and writing", "", report)))%>%
+        mutate(report=str_trim(gsub("and Writing", "", report)))
+    strings <- temp$report[1]%>%str_split("(?<=\\s)(?=\\S)")%>%unlist
+    print(strings)
+    
+    temp2<-pdf%>%filter(grepl("SAT Evidence-Based Reading", report)==TRUE)%>%
+        mutate(report=str_trim(gsub("C9", "", report)))
+    strings2 <- temp2$report[1]%>%str_split("(?<=\\s)(?=\\S)")%>%unlist
+    print(strings2)   
+```
+
+```{r data_processing_in_loop}
+
+for(i in 1:length(listofdata)){
+
+pdf<-as.data.frame(listofdata[[i]])
+
+# Prep ################
+
+    colnames(pdf)<-c("report")
+    pdf$report<-str_trim(pdf$report)
+    pdf$lag_report<-lag(pdf$report)
+    pdf$laglag_report<-lag(pdf$lag_report)
+    
+    # year
+    year<-str_trim(gsub("Common Data Set", "", pdf$report[1]))
+    year<-as.numeric(substr(year, 1, 4))
+    
+    # collete
+    temp<-pdf%>%
+        filter(grepl("Name of College/University", report)==TRUE)
+    name<-temp$report[1]
+    name<-gsub("Name of College/University","", name)
+    name<-gsub("University","", name)
+    name<-gsub("College","", name)
+    name<-gsub(":","", name)
+    name<-gsub(" ","", name)
+
+dta<-pdf%>%filter(report !="")%>%
+    mutate(
+        college = name, 
+        year = year
+    )
+        
+table(dta$college, dta$year)                
+
+# clean ################
+dta<-dta%>%
+    mutate(
+        section = NA, 
+        section = replace(section, 
+                          grepl("A. GENERAL INFORMATION",
+                                toupper(report))==TRUE, "A"),
+        section = replace(section, 
+                          grepl("B. ENROLLMENT AND PERSISTENCE",
+                                toupper(report))==TRUE, "B"),
+        section = replace(section, 
+                          grepl("C. FIRST-TIME, FIRST-YEAR ADMISSION",
+                                toupper(report))==TRUE | 
+                              grepl("C. FIRST-TIME, FIRST-YEAR",
+                                    toupper(report))==TRUE, "C"),
+        section = replace(section, 
+                          grepl("D. TRANSFER ADMISSION",
+                                toupper(report))==TRUE, "D"),
+        section = replace(section, 
+                          grepl("E. ACADEMIC OFFERINGS AND POLICIES",
+                                toupper(report))==TRUE, "E"),
+        section = replace(section, 
+                          grepl("F. STUDENT LIFE",
+                                toupper(report))==TRUE, "F"),
+        section = replace(section, 
+                          grepl("G. ANNUAL EXPENSES",
+                                toupper(report))==TRUE, "G"),
+        section = replace(section, 
+                          grepl("H. FINANCIAL AID",
+                                toupper(report))==TRUE, "H"), 
+        section = replace(section, 
+                          grepl("I. INSTRUCTIONAL FACULTY AND CLASS SIZE",
+                                toupper(report))==TRUE, "I"),
+        section = replace(section, 
+                          grepl("J. DISCIPLINARY AREAS OF DEGREES CONFERRED", 
+                                toupper(report))==TRUE, "J")
+    )%>%
+    
+    group_by(college)%>%
+    fill(section, .direction = 'down')%>%
+    ungroup()
+
+# clean_section B ################
+    
+    temp<-pdf%>%filter(grepl("Total undergraduates", report)==TRUE)
+    strings <- temp$report[1]%>%str_split("(?<=\\s)(?=\\S)")%>%unlist
+    strings
+
+dta$num_under_ftmale<-str_trim(strings[3])
+dta$num_under_ftmale<-replace(dta$num_under_ftmale,
+                              grepl("B1 ", temp$report[1])==TRUE, 
+                              str_trim(strings[4]))
+
+dta$num_under_ftfemale<-str_trim(strings[4])
+dta$num_under_ftfemale<-replace(dta$num_under_ftfemale,
+                              grepl("B1 ", temp$report[1])==TRUE, 
+                              str_trim(strings[5]))
+
+    temp<-pdf%>%filter(grepl("Total all undergraduates", report)==TRUE)
+    strings <- temp$report[1]%>%str_split("(?<=\\s)(?=\\S)")%>%unlist
+    strings
+    
+dta$num_under<-str_trim(strings[length(strings)])     
+
+    temp<-pdf%>%filter(grepl("Total all graduate", report)==TRUE)
+    strings <- temp$report[1]%>%str_split("(?<=\\s)(?=\\S)")%>%unlist
+    strings
+    
+dta$num_graduate<-str_trim(strings[length(strings)])       
+
+    temp<-pdf%>%
+        mutate(report2=substr(str_trim(report), 1, 18))%>%
+        filter(grepl("Nonresidents", report2)==TRUE | 
+                   grepl("Nonresident a", report2)==TRUE | 
+                   grepl("International", report2)==TRUE)
+    strings <- temp$report[1]%>%str_split("(?<=\\s)(?=\\S)")%>%unlist
+    strings
+
+dta$num_under_nra<-str_trim(strings[length(strings)])   
+
+    temp<-pdf%>%filter(grepl("Asian, non-Hispanic", report)==TRUE)
+    strings <- temp$report[1]%>%str_split("(?<=\\s)(?=\\S)")%>%unlist
+    strings
+
+dta$num_under_asian<-str_trim(strings[length(strings)])   
+
+    temp<-pdf%>%filter(grepl("(G divided by C)", lag_report)==TRUE)
+    strings <- temp$report[1]%>%str_split("(?<=\\s)(?=\\S)")%>%unlist
+    strings
+
+dta$pc_graduation<-str_trim(strings[length(strings)])
+
+    temp<-pdf%>%filter(grepl("percentage was enrolled at your institution as of the date your institution", report)==TRUE)
+    strings <- temp$report[1]%>%str_split("(?<=\\s)(?=\\S)")%>%unlist
+    strings
+    
+    temp2<-pdf%>%filter(grepl("its official enrollment in Fall", lag_report)==TRUE)
+    strings2 <- temp2$report[1]%>%str_split("(?<=\\s)(?=\\S)")%>%unlist
+    strings2    
+
+dta$pc_retention<-str_trim(strings[length(strings)])
+dta$pc_retention<-replace(dta$pc_retention,
+                          is.na(dta$pc_retention)==TRUE,
+                          str_trim(strings2[1])) 
+
+# clean_section C ################
+
+temp<-pdf%>%filter(grepl("Total first-time, first-year men who applied", report)==TRUE | 
+                           grepl("Total first-time, first-year (freshman) men who applied", report)==TRUE | 
+                           grepl("men who applied", report)==TRUE )
+    strings <- temp$report[1]%>%str_split("(?<=\\s)(?=\\S)")%>%unlist
+    strings
+
+dta$numapp_male<-str_trim(strings[length(strings)])
+
+    temp<-pdf%>%filter(grepl("Total first-time, first-year women who applied", report)==TRUE |
+                           grepl("Total first-time, first-year (freshman) women who applied", report)==TRUE | 
+                           grepl("women who applied", report)==TRUE )
+    strings <- temp$report[1]%>%str_split("(?<=\\s)(?=\\S)")%>%unlist
+    strings
+
+dta$numapp_female<-str_trim(strings[length(strings)])       
+dta$numapp_female<-replace(dta$numapp_female,
+                           is.na(as.numeric(str_trim(strings[length(strings)-1])))==FALSE,
+                           str_trim(strings[length(strings)-1]))   
+
+    temp<-pdf%>%filter(grepl("Total first-time, first-year men who were admitted", report)==TRUE | 
+                           grepl("Total first-time, first-year (freshman) men who were admitted", report)==TRUE |
+                           grepl("men who were admitted", report)==TRUE)
+    strings <- temp$report[1]%>%str_split("(?<=\\s)(?=\\S)")%>%unlist
+    strings
+
+dta$numadmit_male<-str_trim(strings[length(strings)])
+dta$numadmit_male<-replace(dta$numadmit_male,
+                           as.numeric(dta$numadmit_male)<1,
+                           str_trim(strings[length(strings)-1]))   
+
+    temp<-pdf%>%filter(grepl("Total first-time, first-year women who were admitted", report)==TRUE | 
+                           grepl("Total first-time, first-year (freshman) women who were admitted", report)==TRUE | 
+                           grepl("women who were admitted", report)==TRUE)
+    strings <- temp$report[1]%>%str_split("(?<=\\s)(?=\\S)")%>%unlist
+    strings
+    
+dta$numadmit_female<-str_trim(strings[length(strings)])
+dta$numadmit_female<-replace(dta$numadmit_female, 
+                           is.na(as.numeric(str_trim(strings[length(strings)-1])))==FALSE,
+                           str_trim(strings[length(strings)-1]))   
+dta$numadmit_female<-replace(dta$numadmit_female,
+                           as.numeric(dta$numadmit_female)<1,
+                           str_trim(strings[length(strings)-2]))   
+
+    temp<-pdf%>%filter(grepl("Total full-time, first-time, first-year men who enrolled", report)==TRUE | 
+                           grepl("Total full-time, first-time, first-year (freshman) men who enrolled", report)==TRUE | 
+                           grepl("men who enrolled", report)==TRUE)
+    strings <- temp$report[1]%>%str_split("(?<=\\s)(?=\\S)")%>%unlist
+    strings
+
+dta$numenroll_male<-str_trim(strings[length(strings)])
+dta$numenroll_male<-replace(dta$numenroll_male,
+                           as.numeric(dta$numenroll_male)<1,
+                           str_trim(strings[length(strings)-1]))   
+
+    temp<-pdf%>%filter(grepl("Total full-time, first-time, first-year women who enrolled", report)==TRUE | 
+                           grepl("Total full-time, first-time, first-year women (freshman) who enrolled", report)==TRUE | 
+                           grepl("women who enrolled", report)==TRUE)
+    strings <- temp$report[1]%>%str_split("(?<=\\s)(?=\\S)")%>%unlist
+    strings
+    
+dta$numenroll_female<-str_trim(strings[length(strings)])
+dta$numenroll_female<-replace(dta$numenroll_female,
+                           as.numeric(dta$numenroll_female)<1,
+                           str_trim(strings[length(strings)-1]))   
+
+# clean_section C Scores ################
+
+temp<-pdf%>%filter(grepl("submitting sat scores", tolower(report))==TRUE)
+    strings <- temp$report[1]%>%str_split("(?<=\\s)(?=\\S)")%>%unlist
+    strings
+      
+dta$pc_submitsat<-str_trim(strings[length(strings)-1])
+dta$pc_submitsat<-replace(dta$pc_submitsat,
+                          grepl("C9 ", temp$report[1])==TRUE, 
+                          str_trim(strings[length(strings)-5]))
+
+    temp<-pdf%>%filter(grepl("SAT Evidence-Based Reading", lag_report)==TRUE)%>%
+        mutate(report=str_trim(gsub("and writing", "", report)))%>%
+        mutate(report=str_trim(gsub("and Writing", "", report)))
+    strings <- temp$report[1]%>%str_split("(?<=\\s)(?=\\S)")%>%unlist
+    print(strings)
+    
+    temp2<-pdf%>%filter(grepl("SAT Evidence-Based Reading", report)==TRUE)%>%
+        mutate(report=str_trim(gsub("C9", "", report)))
+    strings2 <- temp2$report[1]%>%str_split("(?<=\\s)(?=\\S)")%>%unlist
+    print(strings2)  
+    
+dta$satrnw25<-str_trim(strings[1])
+dta$satrnw25<-replace(dta$satrnw25, 
+                      grepl('^SAT Math', temp$report[1])==TRUE & 
+                          grepl('^SAT Evidence-Based Reading', temp2$report[1])==TRUE,
+                      str_trim(strings2[length(strings2)-2]))
+
+dta$satrnw75<-str_trim(strings[2])
+dta$satrnw75<-replace(dta$satrnw75, 
+                      grepl('^SAT Math', temp$report[1])==TRUE & 
+                          grepl('^SAT Evidence-Based Reading', temp2$report[1])==TRUE,
+                      str_trim(strings2[length(strings2)]))
+
+    temp<-pdf%>%filter(grepl("SAT Math", report)==TRUE)%>%
+        mutate(report=str_trim(gsub("C9", "", report)))
+    strings <- temp$report[1]%>%str_split("(?<=\\s)(?=\\S)")%>%unlist
+    strings
+
+dta$satmath25<-str_trim(strings[3])
+dta$satmath75<-str_trim(strings[4])
+
+    temp<-pdf%>%filter(grepl("SAT Composite", report)==TRUE & grepl("Assessment", lag_report)==TRUE)
+    strings <- temp$report[1]%>%str_split("(?<=\\s)(?=\\S)")%>%unlist
+    strings
+    
+dta$sat25<-NA
+dta$sat25<-replace(dta$sat25,
+                   is.na(strings)==FALSE,
+                   str_trim(strings[3]))
+dta$sat75<-NA
+dta$sat75<-replace(dta$sat75,
+                   is.na(strings)==FALSE & length(strings)==4,
+                   str_trim(strings[length(strings)]))
+dta$sat75<-replace(dta$sat75,
+                   is.na(strings)==FALSE & length(strings)==5,
+                   str_trim(strings[length(strings)]))
+dta$sat75<-replace(dta$sat75,
+                   is.na(strings)==FALSE & length(strings)==6,
+                   str_trim(strings[4]))
+
+    temp<-pdf%>%filter(grepl("Percent in top tenth of high school graduating class", report)==TRUE)
+    strings <- temp$report[1]%>%str_split("(?<=\\s)(?=\\S)")%>%unlist
+    strings
+    
+dta$pc_top10pct<-str_trim(strings[length(strings)])    
+
+    temp<-pdf%>%filter(grepl("Percent who had GPA of 4.0", report)==TRUE)
+    strings <- temp$report[1]%>%str_split("(?<=\\s)(?=\\S)")%>%unlist
+    strings
+    
+dta$pc_gpa4<-str_trim(strings[length(strings)])
+dta<-dta%>%mutate(pc_gpa4=replace(pc_gpa4, pc_gpa4=="4.0", NA))
+
+# clean_section C early decision ################
+    temp<-pdf%>%filter(grepl("Number of early decision applications received by your institution", report)==TRUE)
+    strings <- temp$report[1]%>%str_split("(?<=\\s)(?=\\S)")%>%unlist
+    strings
+    
+dta$numapp_ed<-str_trim(strings[length(strings)])   
+
+    temp<-pdf%>%filter(grepl("Number of applicants admitted under early decision plan", report)==TRUE)
+    strings <- temp$report[1]%>%str_split("(?<=\\s)(?=\\S)")%>%unlist
+    strings
+    
+dta$numadmit_ed<-str_trim(strings[length(strings)])  
+
+
+# clean_Section D transfer ################
+    temp<-dta%>%filter(section=="D" & grepl("Total", report)==TRUE)
+    strings <- temp$report%>%str_split("(?<=\\s)(?=\\S)")%>%unlist
+    
+dta$numtransapp_total<-str_trim(strings[length(strings)-2])           
+dta$numtransadmit_total<-str_trim(strings[length(strings)-1])           
+dta$numtransenroll_total<-str_trim(strings[length(strings)])           
+
+# clean_Section F student life ################
+    temp<-pdf%>%filter(grepl("Percent who are from out of state", lag_report)==TRUE)
+    temp$report <- gsub("[^0-9%.-]", "", temp$report)
+    temp$report <- gsub("%", " ", temp$report, fixed=TRUE)
+    strings <- temp$report%>%str_split("(?<=\\s)(?=\\S)")%>%unlist
+    
+    temp<-pdf%>%filter(grepl("Percent who are from out of state", laglag_report)==TRUE)
+    temp$report <- gsub("[^0-9%.-]", "", temp$report)
+    temp$report <- gsub("%", " ", temp$report, fixed=TRUE)
+    strings <- temp$report%>%str_split("(?<=\\s)(?=\\S)")%>%unlist
+    
+dta$pct_oos<-str_trim(strings[length(strings)])   
+dta$pct_oos<-replace(dta$pct_oos,
+                     is.na(dta$pct_oos)==TRUE, 
+                     str_trim(strings2[length(strings2)]))
+
+    temp<-pdf%>%filter(grepl("Percent of men who join fraternities", report)==TRUE)
+    temp$report <- gsub("[^0-9%.-]", "", temp$report)
+    temp$report <- gsub("%", " ", temp$report, fixed=TRUE)
+    strings <- temp$report[1]%>%str_split("(?<=\\s)(?=\\S)")%>%unlist
+    strings
+    
+dta$pct_frat<-str_trim(strings[length(strings)])  
+
+    temp<-pdf%>%filter(grepl("Percent of women who join sororities", report)==TRUE)
+    temp$report <- gsub("[^0-9%.-]", "", temp$report)
+    temp$report <- gsub("%", " ", temp$report, fixed=TRUE)
+    strings <- temp$report[1]%>%str_split("(?<=\\s)(?=\\S)")%>%unlist
+    strings
+    
+dta$pct_soro<-str_trim(strings[length(strings)]) 
+
+    temp<-pdf%>%filter(grepl("Percent who live in college", lag_report)==TRUE)
+    temp$report <- gsub("[^0-9%.-]", "", temp$report)
+    temp$report <- gsub("%", " ", temp$report, fixed=TRUE)
+    strings <- temp$report[1]%>%str_split("(?<=\\s)(?=\\S)")%>%unlist
+    strings
+
+    temp<-pdf%>%filter(grepl("Percent who live in college", lag_report)==TRUE)
+    temp$report <- gsub("[^0-9%.-]", "", temp$report)
+    temp$report <- gsub("%", " ", temp$report, fixed=TRUE)
+    strings <- temp$report[1]%>%str_split("(?<=\\s)(?=\\S)")%>%unlist
+    print(strings)    
+
+dta$pct_colhouse_fresh<-str_trim(strings[length(strings)-1]) 
+dta$pct_colhouse_fresh<-replace(dta$pct_colhouse_fresh,
+                     is.na(dta$pct_colhouse_fresh)==TRUE, 
+                     str_trim(strings2[length(strings2)-1]))
+
+dta$pct_colhouse<-str_trim(strings[length(strings)]) 
+dta$pct_colhouse<-replace(dta$pct_colhouse,
+                     is.na(dta$pct_colhouse)==TRUE, 
+                     str_trim(strings2[length(strings2)]))
+
+# clean_section G ################
+    temp<-pdf%>%filter(grepl("Tuition", report)==TRUE & grepl("PRIVATE INSTITUTIONS", lag_report)==TRUE )
+    strings <- temp$report[1]%>%str_split("(?<=\\s)(?=\\S)")%>%unlist
+    strings
+
+dta$exp_tuition<-NA 
+dta$exp_tuition<-replace(dta$exp_tuition, length(strings)>=2, str_trim(strings[length(strings)-1]))   
+
+    temp<-pdf%>%filter(grepl("in-district", tolower(report))==TRUE )
+    strings <- temp$report[1]%>%str_split("(?<=\\s)(?=\\S)")%>%unlist
+    strings
+    
+dta$exp_tuitionindistrict<-NA 
+dta$exp_tuitionindistrict<-replace(dta$exp__tuitionindistrict,
+                                   is.na(temp$report[1])==FALSE,
+                                   str_trim(strings[length(strings)-1]))       
+
+    temp<-pdf%>%filter(grepl("in-state", tolower(report))==TRUE )
+    strings <- temp$report[1]%>%str_split("(?<=\\s)(?=\\S)")%>%unlist
+    strings
+    
+dta$exp_tuitioninstate<-NA 
+dta$exp_tuitioninstate<-replace(dta$exp__tuitioninstate,
+                                is.na(temp$report[1])==FALSE,
+                                str_trim(strings[length(strings)-1]))           
+    
+dta$exp_tuitioninstate<-str_trim(strings[length(strings)-1])      
+    
+    temp<-pdf%>%filter(grepl("out-of-state", tolower(report))==TRUE )
+    strings <- temp$report[1]%>%str_split("(?<=\\s)(?=\\S)")%>%unlist
+    strings
+    
+dta$exp_tuitionoutstate<-str_trim(strings[length(strings)-1])     
+
+    temp<-pdf%>%filter(grepl("required fees", tolower(report))==TRUE )
+    strings <- temp$report[1]%>%str_split("(?<=\\s)(?=\\S)")%>%unlist
+    strings
+    
+dta$exp_fees<-str_trim(strings[length(strings)-1])      
+
+# more_cleaning_save ################
+dta<-dta%>%
+    select(-report, -lag_report, -laglag_report, -section)
+
+varlist<-dta%>%select(-college, -year, -starts_with(c("exp_")))%>%colnames()
+
+dta<-dta%>%
+    mutate_at(.vars = varlist, 
+              #funs = funs(str_replace_all(x, "[[:punct:]]", "")))%>%
+              .funs = funs(str_replace_all(., "%", "")))%>%
+    mutate_at(.vars = varlist, 
+              .funs = funs(str_replace_all(., "$", "")))%>%
+    mutate_at(.vars = varlist, 
+              .funs = funs(str_replace_all(., ",", "")))%>%
+    mutate_at(vars(varlist), funs(as.numeric))  
+
+# collapse ################
+    dta<-dta[ 1 , ]
+
+# append ################
+dtacum <- read_excel("~/Dropbox/0Kids/CDS/CommonDataSet_scraped.xlsx", 
+                     #From CDS_DataPrep_PDF_test.Rmd
+                     col_names = TRUE)
+
+df<-bind_rows(dta, dtacum)
+write_xlsx(df, 
+           "~/Dropbox/0Kids/CDS/CommonDataSet_scraped.xlsx", 
+           col_names = TRUE)
+
+}
+```
+
+```{r check_results, results='asis', eval=FALSE}
+for(i in 1:length(listofdata)){
+print(dim(listofdata[[i]]))    
+print(head(listofdata[[i]]))  
+
+}    
+```
