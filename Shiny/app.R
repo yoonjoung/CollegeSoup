@@ -587,7 +587,7 @@ ui<-fluidPage(
                              ), 
 
                              # Admission - criteria  ####
-                             h4("What are admission criteria? - forthcoming", style = "color:blue"),
+                             h4("What are admission criteria?", style = "color:blue"),
                              p("Relative importance of academic and nonacademic factors in their", 
                                "first-time, firstyear, degree-seeking general admissions decisions", 
                                "(not including programs with specific criteria)."),
@@ -2790,7 +2790,7 @@ server<-function(input, output, session) {
             mutate(
                 admission.rate = ifelse(admission.rate=="reach", "Below 20%",
                                         ifelse(admission.rate=="target", "20-50%",
-                                               ifelse(admission.rate=="safe", "50% or higher",
+                                               ifelse(admission.rate=="safety", "50% or higher",
                                                       "-"))))%>%
             arrange(college)
         
