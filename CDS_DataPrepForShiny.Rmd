@@ -121,11 +121,15 @@ dta<-dta%>%
         numenroll_male=replace(numenroll_male, women==1, 0), 
         
         # STUDENT POPULATION  
-        ratio_underft_mf = round(num_under_ftmale / num_under_ftfemale, 2),   
-        pc_total_under = num_under / num_under + num_graduate, 
+        ratio_underft_mf = round(100*num_under_ftmale / num_under_ftfemale, 0),   
+        
+        num_total = num_under + num_graduate, 
+        pc_total_under = num_under / num_total, 
+        
         pc_under_nra = num_under_nra / num_under, 
         pc_under_asian = num_under_asian / num_under, 
         pc_under_ft = (num_under_ftmale / num_under_ftfemale) / num_under, 
+        
         # TRANSFER
         numtransapp_total = as.numeric(numtransapp_total), 
         numtransadmit_total = as.numeric(numtransadmit_total), 
@@ -135,6 +139,8 @@ dta<-dta%>%
         numapp_total = numapp_male + numapp_female, 
         numadmit_total = numadmit_male + numadmit_female, 
         numenroll_total = numenroll_male + numenroll_female, 
+        
+        ratio_admit_trans = round(100*numtransenroll_total / numenroll_total, 0), 
         
         pc_admit_male = numadmit_male / numapp_male, 
         pc_admit_female = numadmit_female / numapp_female, 
@@ -270,28 +276,26 @@ dta<-dta%>%
         ref = replace(ref, year!=yearlatest, NA), 
         ref = mean(ref, na.rm = TRUE), 
         relnumtransapp_total = round(numtransapp_total / ref, 2), 
+        relnumtransapp_total = replace(relnumtransapp_total, ratio_admit_trans<5, NA), 
         
         ref = numtransadmit_total, 
         ref = replace(ref, year!=yearlatest, NA), 
         ref = mean(ref, na.rm = TRUE), 
         relnumtransadmit_total = round(numtransadmit_total / ref, 2),     
+        relnumtransadmit_total = replace(relnumtransadmit_total, ratio_admit_trans<5, NA), 
         
         ref = numtransenroll_total, 
         ref = replace(ref, year!=yearlatest, NA), 
         ref = mean(ref, na.rm = TRUE), 
         relnumtransenroll_total = round(numtransenroll_total / ref, 2), 
-        
-        temp = mean(numtransenroll_total)/mean(num_under), 
-        relnumtransapp_total = replace(relnumtransapp_total, temp<0.05, NA), 
-        relnumtransadmit_total = replace(relnumtransadmit_total, temp<0.05, NA), 
-        relnumtransenroll_total = replace(relnumtransenroll_total, temp<0.05, NA),
+        relnumtransenroll_total = replace(relnumtransenroll_total, ratio_admit_trans<5, NA),
         
         latest_num_under = num_under,
         latest_num_under = replace(latest_num_under, year!=yearlatest, NA), 
         latest_num_under = mean(latest_num_under, na.rm = TRUE), 
     )%>%
     ungroup()%>%
-    select(-ref, -temp)%>%
+    select(-ref)%>%
     mutate(
 
         # EXPENSES ####
@@ -331,16 +335,31 @@ dim(dta)
 
 ```{r genvar_group_more, results='hide'}
 dta <- dta%>%
+    group_by(college)%>%
+    mutate(
+        temp = ifelse(year==yearlatest, pct_admit_total,
+                      ifelse(year==yearlatest-1, pct_admit_total,
+                             ifelse(year==yearlatest-2, pct_admit_total,
+                                    NA))), 
+        pct_admit_total_recent = mean(temp, na.rm = TRUE) 
+        #average from the latest three years
+    )%>%
+    ungroup()%>%
+    select(-temp)%>%
     
     mutate(
-
         # size #### 
         tiny = latest_num_under < 2000,
         small = latest_num_under >= 2000 & latest_num_under < 5000,
         medium = latest_num_under >= 5000 & latest_num_under<10000,
         large = latest_num_under >= 10000 & latest_num_under<30000,
         huge = latest_num_under >= 30000, 
-       
+
+        # admission rate #### 
+        pct_admit_reach = pct_admit_total_recent<20, 
+        pct_admit_target = pct_admit_total_recent>=20 & pct_admit_total_recent<50, 
+        pct_admit_safety = pct_admit_total_recent>=50, 
+        
         # group #### 
         all=1, 
         groupall = ifelse(all==1, "all", ""), 
@@ -350,10 +369,14 @@ dta <- dta%>%
                            ifelse(large==1, "large", 
                            ifelse(huge==1, "huge",       
                                   ""))))),
+        groupadmit = ifelse(pct_admit_reach==1, "reach", 
+                           ifelse(pct_admit_target==1, "target", 
+                           ifelse(pct_admit_safety==1, "safety",  
+                                  ""))),
         groupwomen = ifelse(women==1, "women", ""),
         groupopen = ifelse(open==1, "open", ""), 
         grouppublic = ifelse(public==1, "public", ""), 
-        group=paste(groupall, groupsize, groupwomen, groupopen, grouppublic) 
+        group=paste(groupall, groupsize, groupadmit, groupwomen, groupopen, grouppublic) 
     )
 ```
 
