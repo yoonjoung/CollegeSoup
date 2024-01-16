@@ -26,7 +26,7 @@ date<-as.Date(Sys.time(	), format='%d%b%Y')
 
 ##### 0.1 load datasets #####
 
-# Load and mutate ----
+# Load and mutate 
 # Datasets are prepared using CDS_DataPrepForShiny.Rmd
 
 #setwd("~/Dropbox/0Kids/0iSquareed_CollegeSoup/Shiny/")
@@ -159,7 +159,7 @@ ui<-fluidPage(
                     type = "tabs",
        
                     # TAB 1: financial aid ####
-                    tabPanel("1. Financial aid overview",
+                    tabPanel("1. Financial aid",
                             # top row ####
                             fluidRow(
                                 selectInput("collegegroup_tab1", 
@@ -252,7 +252,7 @@ ui<-fluidPage(
                             hr() 
                     ),
                     # TAB 2: admission criteria ####
-                    tabPanel("2. Admission criteria overview",
+                    tabPanel("2. Admission criteria",
                              # top row ####
                              fluidRow(
                                  selectInput("collegegroup_tab2", 
@@ -313,7 +313,7 @@ ui<-fluidPage(
                             )
                     ),          
                     # TAB 3: admission statistics ####
-                    tabPanel("3. Admission statistics overview",
+                    tabPanel("3. Admission statistics",
                              # top row ####
                              fluidRow(
                                  selectInput("collegegroup_tab3", 
@@ -443,7 +443,7 @@ ui<-fluidPage(
                              )
                     ),
                     # TAB 4: Student population and life ####
-                    tabPanel("4. Student population and life overview",
+                    tabPanel("4. Student population",
                              # top row ####
                              fluidRow(
                                  selectInput("collegegroup_tab4", 
@@ -542,8 +542,61 @@ ui<-fluidPage(
                                         plotlyOutput("plot_relnumtransenroll_total",
                                                      width = 400, height = 400)
                                  )
-                             ), 
-                             
+                             )
+                    ),
+                    # TAB 5: Student life ####
+                    tabPanel("5. Student life",
+                             # top row ####
+                             fluidRow(
+                                 selectInput("collegegroup_tab5", 
+                                             "Select a group of colleges", 
+                                             choices = collegegrouplist), 
+                                 p("Note: It includes select colleges of interest.",
+                                   actionLink("link_tab4_annex", "See Annex"),
+                                   "for the list of colleges in each group.") 
+                             ),
+                             # safety - arrests ####
+                             fluidRow(
+                                 h4("Campus sagety, in terms of any arrests...", style = "color:blue"),  
+                                 column(4,
+                                        h5("Any arrests (per 1000 students), latest year"),    
+                                        plotlyOutput("plot_rate_arrest_rank",
+                                                     width = 400, height = 400)
+                                 ),
+                                 column(4,
+                                        h5("Any arrests (per 1000 students), trends"),    
+                                        plotlyOutput("plot_rate_arrest",
+                                                     width = 400, height = 400)
+                                 ),
+                             ),
+                             # safety - criminal cases ####
+                             fluidRow(
+                                 h4("Campus sagety, in terms of any criminal cases...", style = "color:blue"),
+                                 column(4,
+                                        h5("Criminal cases (per 1000 students), latest year"),
+                                        plotlyOutput("plot_rate_criminal_rank",
+                                                     width = 400, height = 400)
+                                 ),
+                                 column(4,
+                                        h5("Criminal cases (per 1000 students), trends"),
+                                        plotlyOutput("plot_rate_criminal",
+                                                     width = 400, height = 400)
+                                 )
+                             ),
+                             # safety - vawa ####
+                             fluidRow(
+                                 h4("Campus sagety, in terms of any violence against women act (VAWA) incidents ...", style = "color:blue"),
+                                 column(4,
+                                        h5("VAWA cases (per 1000 students), latest year"),
+                                        plotlyOutput("plot_rate_vawa_rank",
+                                                     width = 400, height = 400)
+                                 ),
+                                 column(4,
+                                        h5("VAWA cases (per 1000 students), trends"),
+                                        plotlyOutput("plot_rate_vawa",
+                                                     width = 400, height = 400)
+                                 )
+                             ),
                              # housing ####
                              fluidRow(
                                  h4("In terms of housing ...", style = "color:blue"),  
@@ -598,15 +651,15 @@ ui<-fluidPage(
                                  )
                              )
                     ), 
-                    # TAB 5: Education quality  ####
-                    tabPanel("5. Education quality ",
+                    # TAB 6: Education quality  ####
+                    tabPanel("6. Education quality ",
                              # top row ####
                              fluidRow(
-                                 selectInput("collegegroup_tab5", 
+                                 selectInput("collegegroup_tab6", 
                                              "Select a group of colleges", 
                                              choices = collegegrouplist), 
                                  p("Note: It includes select colleges of interest.",
-                                   actionLink("link_tab5_annex", "See Annex"),
+                                   actionLink("link_tab6_annex", "See Annex"),
                                    "for the list of colleges in each group.") 
                              ),    
                              
@@ -673,12 +726,12 @@ ui<-fluidPage(
                                  ), 
                              )
                     ),
-                    # TAB 6: In-depth insight by college####
-                    tabPanel("6. In-depth insight by college",                             
-                             selectInput("collegegroup_tab6", 
+                    # TAB 7: In-depth insight by college####
+                    tabPanel("7. In-depth insight by college",                             
+                             selectInput("collegegroup_tab7", 
                                          "Select a group of colleges", 
                                          choices = collegegrouplist), 
-                             selectInput("college_tab6", 
+                             selectInput("college_tab7", 
                                          "Select a college", 
                                          choices = NULL), 
                              # Programs offered ####
@@ -2250,8 +2303,6 @@ server<-function(input, output, session) {
             )
     })    
     
-    ##### output: Tab 4: student life #####    
-    
     output$plot_pct_us_oos <- renderPlotly({
         
         dtafig<-dta%>%
@@ -2313,12 +2364,212 @@ server<-function(input, output, session) {
             )
     })    
     
+    ##### output: Tab 5: student life #####    
+    
+    output$plot_rate_arrest_rank <- renderPlotly({
+
+        dtafig<-dta%>%
+            filter(grepl(sub("\\'.*", "", 
+                             sub("\\s.*", "", 
+                                 tolower(input$collegegroup_tab5))),
+                         group))%>%
+            
+            filter( is.na(institution_size)==FALSE)%>%
+            group_by(college)%>%
+            mutate(yearlatest=max(year))%>%
+            ungroup()%>%
+            
+            filter(year==yearlatest)
+        
+        dtafig%>%
+            plot_ly(
+                y = ~college,
+                type="bar", 
+                x = ~rate_total_arrests, 
+                line = list(color = greencolors[3]), 
+                marker = list(color = greencolors[3]),
+                hovertemplate = paste0(
+                    dtafig$college, 
+                    "<br>Year: ", dtafig$year, 
+                    "<br>Number of any arrests (per 1000): ", dtafig$rate_total_arrests))%>%   
+            layout(
+                title = "", 
+                xaxis = list(title = "<br>Number (per 1000)",  
+                             #range=c(0, 100), 
+                             showgrid = FALSE, showticklabels = TRUE),
+                yaxis = list(title = "",
+                             tickfont = list(size=9),
+                             categoryorder = "total descending"),
+                showlegend = FALSE
+            )
+    })        
+    
+    output$plot_rate_arrest <- renderPlotly({
+        
+        dtafig<-dta%>%
+            filter(grepl(sub("\\'.*", "", 
+                             sub("\\s.*", "", 
+                                 tolower(input$collegegroup_tab5))),
+                         group))
+        
+        dtafig%>%
+            plot_ly(
+                x = ~year, y = ~rate_total_arrests,
+                type="scatter", mode = 'lines+markers', 
+                color = ~college,
+                hovertemplate = paste0(
+                    dtafig$college,       
+                    "<br>Year: ", dtafig$year, 
+                    "<br>Number of any arrests (per 1000): ", dtafig$rate_total_arrests))%>%
+            layout(
+                title = "", showlegend = FALSE, 
+                shapes = list(vline(2021)),
+                yaxis = list(title = "<br>Number (per 1000)",  
+                             #range=c(0, 100), 
+                             showgrid = FALSE, 
+                             showticklabels = TRUE),
+                xaxis = list(title = "Year", showgrid = FALSE , range=c(2016, 2024))
+            )
+    })      
+    
+    output$plot_rate_criminal_rank <- renderPlotly({
+        
+        dtafig<-dta%>%
+            filter(grepl(sub("\\'.*", "", 
+                             sub("\\s.*", "", 
+                                 tolower(input$collegegroup_tab5))),
+                         group))%>%
+            
+            filter( is.na(institution_size)==FALSE)%>%
+            group_by(college)%>%
+            mutate(yearlatest=max(year))%>%
+            ungroup()%>%
+            
+            filter(year==yearlatest)
+        
+        dtafig%>%
+            plot_ly(
+                y = ~college,
+                type="bar", 
+                x = ~rate_total_criminal, 
+                line = list(color = greencolors[3]), 
+                marker = list(color = greencolors[3]),
+                hovertemplate = paste0(
+                    dtafig$college,    
+                    "<br>Year: ", dtafig$year, 
+                    "<br>Number of any criminal (per 1000): ", dtafig$rate_total_criminal))%>%   
+            layout(
+                title = "", 
+                xaxis = list(title = "<br>Number (per 1000)",  
+                             #range=c(0, 100), 
+                             showgrid = FALSE, showticklabels = TRUE),
+                yaxis = list(title = "",
+                             tickfont = list(size=9),
+                             categoryorder = "total descending"),
+                showlegend = FALSE
+            )
+    })        
+    
+    output$plot_rate_criminal <- renderPlotly({
+        
+        dtafig<-dta%>%
+            filter(grepl(sub("\\'.*", "", 
+                             sub("\\s.*", "", 
+                                 tolower(input$collegegroup_tab5))),
+                         group))
+        
+        dtafig%>%
+            plot_ly(
+                x = ~year, y = ~rate_total_criminal,
+                type="scatter", mode = 'lines+markers', 
+                color = ~college,
+                hovertemplate = paste0(
+                    dtafig$college,       
+                    "<br>Year: ", dtafig$year, 
+                    "<br>Number of any criminal (per 1000): ", dtafig$rate_total_criminal))%>%
+            layout(
+                title = "", showlegend = FALSE, 
+                shapes = list(vline(2021)),
+                yaxis = list(title = "<br>Number (per 1000)",  
+                             #range=c(0, 100), 
+                             showgrid = FALSE, 
+                             showticklabels = TRUE),
+                xaxis = list(title = "Year", showgrid = FALSE , range=c(2016, 2024))
+            )
+    })    
+    
+    output$plot_rate_vawa_rank <- renderPlotly({
+        
+        dtafig<-dta%>%
+            filter(grepl(sub("\\'.*", "", 
+                             sub("\\s.*", "", 
+                                 tolower(input$collegegroup_tab5))),
+                         group))%>%
+            
+            filter( is.na(institution_size)==FALSE)%>%
+            group_by(college)%>%
+            mutate(yearlatest=max(year))%>%
+            ungroup()%>%
+            
+            filter(year==yearlatest)
+        
+        dtafig%>%
+            plot_ly(
+                y = ~college,
+                type="bar", 
+                x = ~rate_total_vawa, 
+                line = list(color = greencolors[3]), 
+                marker = list(color = greencolors[3]),
+                hovertemplate = paste0(
+                    dtafig$college,       
+                    "<br>Year: ", dtafig$year, 
+                    "<br>Number of any vawa (per 1000): ", dtafig$rate_total_vawa))%>%   
+            layout(
+                title = "", 
+                xaxis = list(title = "<br>Number (per 1000)",  
+                             #range=c(0, 100), 
+                             showgrid = FALSE, showticklabels = TRUE),
+                yaxis = list(title = "",
+                             tickfont = list(size=9),
+                             categoryorder = "total descending"),
+                showlegend = FALSE
+            )
+    })        
+    
+    output$plot_rate_vawa <- renderPlotly({
+        
+        dtafig<-dta%>%
+            filter(grepl(sub("\\'.*", "", 
+                             sub("\\s.*", "", 
+                                 tolower(input$collegegroup_tab5))),
+                         group))
+        
+        dtafig%>%
+            plot_ly(
+                x = ~year, y = ~rate_total_vawa,
+                type="scatter", mode = 'lines+markers', 
+                color = ~college,
+                hovertemplate = paste0(
+                    dtafig$college,       
+                    "<br>Year: ", dtafig$year, 
+                    "<br>Number of any vawa (per 1000): ", dtafig$rate_total_vawa))%>%
+            layout(
+                title = "", showlegend = FALSE, 
+                shapes = list(vline(2021)),
+                yaxis = list(title = "<br>Number (per 1000)",  
+                             #range=c(0, 100), 
+                             showgrid = FALSE, 
+                             showticklabels = TRUE),
+                xaxis = list(title = "Year", showgrid = FALSE , range=c(2016, 2024))
+            )
+    })    
+
     output$plot_pct_housing_freshmen <- renderPlotly({
         
         dtafig<-dta%>%
             filter(grepl(sub("\\'.*", "", 
                              sub("\\s.*", "", 
-                                 tolower(input$collegegroup_tab4))),
+                                 tolower(input$collegegroup_tab5))),
                          group))
         
         dtafig%>%
@@ -2346,7 +2597,7 @@ server<-function(input, output, session) {
         dtafig<-dta%>%
             filter(grepl(sub("\\'.*", "", 
                              sub("\\s.*", "", 
-                                 tolower(input$collegegroup_tab4))),
+                                 tolower(input$collegegroup_tab5))),
                          group))%>%
             filter(year==yearlatest)
         
@@ -2379,7 +2630,7 @@ server<-function(input, output, session) {
         dtafig<-dta%>%
             filter(grepl(sub("\\'.*", "", 
                              sub("\\s.*", "", 
-                                 tolower(input$collegegroup_tab4))),
+                                 tolower(input$collegegroup_tab5))),
                          group))
         
         dtafig%>%
@@ -2407,7 +2658,7 @@ server<-function(input, output, session) {
         dtafig<-dta%>%
             filter(grepl(sub("\\'.*", "", 
                              sub("\\s.*", "", 
-                                 tolower(input$collegegroup_tab4))),
+                                 tolower(input$collegegroup_tab5))),
                          group))%>%
             filter(year==yearlatest)
         
@@ -2440,7 +2691,7 @@ server<-function(input, output, session) {
         dtafig<-dta%>%
             filter(grepl(sub("\\'.*", "", 
                              sub("\\s.*", "", 
-                                 tolower(input$collegegroup_tab4))),
+                                 tolower(input$collegegroup_tab5))),
                          group))
         
         dtafig%>%
@@ -2468,7 +2719,7 @@ server<-function(input, output, session) {
         dtafig<-dta%>%
             filter(grepl(sub("\\'.*", "", 
                              sub("\\s.*", "", 
-                                 tolower(input$collegegroup_tab4))),
+                                 tolower(input$collegegroup_tab5))),
                          group))%>%
             filter(year==yearlatest)
         
@@ -2500,7 +2751,7 @@ server<-function(input, output, session) {
         dtafig<-dta%>%
             filter(grepl(sub("\\'.*", "", 
                              sub("\\s.*", "", 
-                                 tolower(input$collegegroup_tab4))),
+                                 tolower(input$collegegroup_tab5))),
                          group))
         
         dtafig%>%
@@ -2528,7 +2779,7 @@ server<-function(input, output, session) {
         dtafig<-dta%>%
             filter(grepl(sub("\\'.*", "", 
                              sub("\\s.*", "", 
-                                 tolower(input$collegegroup_tab4))),
+                                 tolower(input$collegegroup_tab5))),
                          group))%>%
             filter(year==yearlatest)
         
@@ -2555,14 +2806,14 @@ server<-function(input, output, session) {
             )
     })        
     
-    ##### output: Tab 5 #####
+    ##### output: Tab 6 #####
 
     output$plot_class_size_30_rank <- renderPlotly({
         
         dtafig<-dta%>%
             filter(grepl(sub("\\'.*", "", 
                              sub("\\s.*", "", 
-                                 tolower(input$collegegroup_tab5))),
+                                 tolower(input$collegegroup_tab6))),
                          group))%>%
             filter(year==yearlatest)
         
@@ -2595,7 +2846,7 @@ server<-function(input, output, session) {
         dtafig<-dta%>%
             filter(grepl(sub("\\'.*", "", 
                              sub("\\s.*", "", 
-                                 tolower(input$collegegroup_tab5))),
+                                 tolower(input$collegegroup_tab6))),
                          group))%>%
             filter(year==yearlatest)
         
@@ -2628,7 +2879,7 @@ server<-function(input, output, session) {
         dtafig<-dta%>%
             filter(grepl(sub("\\'.*", "",
                              sub("\\s.*", "",
-                                 tolower(input$collegegroup_tab5))),
+                                 tolower(input$collegegroup_tab6))),
                          group))%>%
             filter(year==yearlatest)%>%
             select(college, year, starts_with("pct_class_"))
@@ -2702,7 +2953,7 @@ server<-function(input, output, session) {
         dtafig<-dta%>%
             filter(grepl(sub("\\'.*", "",
                              sub("\\s.*", "",
-                                 tolower(input$collegegroup_tab5))),
+                                 tolower(input$collegegroup_tab6))),
                          group))%>%
             filter(year==yearlatest)%>%
             select(college, year, starts_with("pct_class_"))
@@ -2748,7 +2999,7 @@ server<-function(input, output, session) {
         dtafig<-dta%>%
             filter(grepl(sub("\\'.*", "", 
                              sub("\\s.*", "", 
-                                 tolower(input$collegegroup_tab5))),
+                                 tolower(input$collegegroup_tab6))),
                          group))%>%
             filter(year==yearlatest)
         
@@ -2780,7 +3031,7 @@ server<-function(input, output, session) {
         dtafig<-dta%>%
             filter(grepl(sub("\\'.*", "", 
                              sub("\\s.*", "", 
-                                 tolower(input$collegegroup_tab5))),
+                                 tolower(input$collegegroup_tab6))),
                          group))
         
         dtafig%>%
@@ -2809,7 +3060,7 @@ server<-function(input, output, session) {
         dtafig<-dta%>%
             filter(grepl(sub("\\'.*", "", 
                              sub("\\s.*", "", 
-                                 tolower(input$collegegroup_tab5))),
+                                 tolower(input$collegegroup_tab6))),
                          group))
         
         dtafig%>%
@@ -2837,7 +3088,7 @@ server<-function(input, output, session) {
         dtafig<-dta%>%
             filter(grepl(sub("\\'.*", "", 
                              sub("\\s.*", "", 
-                                 tolower(input$collegegroup_tab5))),
+                                 tolower(input$collegegroup_tab6))),
                          group))%>%
             filter(year==yearlatest)
         
@@ -2869,7 +3120,7 @@ server<-function(input, output, session) {
         dtafig<-dta%>%
             filter(grepl(sub("\\'.*", "", 
                              sub("\\s.*", "", 
-                                 tolower(input$collegegroup_tab5))),
+                                 tolower(input$collegegroup_tab6))),
                          group))
         
         dtafig%>%
@@ -2892,11 +3143,11 @@ server<-function(input, output, session) {
             )
     })    
     
-    ##### output: Tab 6 #####
+    ##### output: Tab 7 #####
 
-    observeEvent(input$collegegroup_tab6, {
+    observeEvent(input$collegegroup_tab7, {
         # Define choices for the second selectInput based on the first choice
-        college_tab6 <- switch(input$collegegroup_tab6,
+        college_tab7 <- switch(input$collegegroup_tab7,
                                "All" = collegelist_all, 
                                "Size: Tiny (undergraduate <2000)" = collegelist_tiny, 
                                "Size: Small (undergraduate 2K-5K)" = collegelist_small, 
@@ -2915,20 +3166,20 @@ server<-function(input, output, session) {
                                )
 
         # Update the choices for the second selectInput
-        updateSelectInput(session, "college_tab6", choices = college_tab6)
+        updateSelectInput(session, "college_tab7", choices = college_tab7)
     })
     
     output$text_college <- renderText({
-        paste(input$college_tab6) 
+        paste(input$college_tab7) 
     })        
 
     output$text_offer <- renderText({
-        paste("Does", input$college_tab6, "provide the following?") 
+        paste("Does", input$college_tab7, "provide the following?") 
     })    
     
     output$text_offer1 <- renderText({
         
-        dtafig<-dta%>%filter(college==input$college_tab6)%>%
+        dtafig<-dta%>%filter(college==input$college_tab7)%>%
             filter(year==yearlatest)
         
         paste("Cross-registration:", dtafig$offer_cross)
@@ -2936,7 +3187,7 @@ server<-function(input, output, session) {
     
     output$table_offer <- renderTable({
         
-        dtafig<-dta%>%filter(college==input$college_tab6)%>%
+        dtafig<-dta%>%filter(college==input$college_tab7)%>%
         #dtafig<-dta%>%filter(college=="Middlebury")%>%    
             filter(year==yearlatest)%>%
             select(starts_with("offer_"))
@@ -2967,7 +3218,7 @@ server<-function(input, output, session) {
 
     output$cplot_pct_assistance <- renderPlotly({    
         
-        dtafig<-dtaall_latest%>%filter(college==input$college_tab6) 
+        dtafig<-dtaall_latest%>%filter(college==input$college_tab7) 
         
         dtafig%>%
             plot_ly(
@@ -3014,7 +3265,7 @@ server<-function(input, output, session) {
     
     output$cplot_amount_assistance <- renderPlotly({
         
-        dtafig<-dtaall_latest%>%filter(college==input$college_tab6) 
+        dtafig<-dtaall_latest%>%filter(college==input$college_tab7) 
         
         dtafig%>%
             plot_ly(
@@ -3075,7 +3326,7 @@ server<-function(input, output, session) {
     output$cplot_aca <- renderPlotly({    
         
         dtafig<-dta%>%
-            filter(college==input$college_tab6)%>% 
+            filter(college==input$college_tab7)%>% 
             filter(year==yearlatest)%>%
             select(college, starts_with(c("num_aca_")))
         
@@ -3118,7 +3369,7 @@ server<-function(input, output, session) {
     output$cplot_acna <- renderPlotly({    
         
         dtafig<-dta%>%
-            filter(college==input$college_tab6)%>% 
+            filter(college==input$college_tab7)%>% 
             filter(year==yearlatest)%>%
             select(college, starts_with(c("num_acna_")))
         
@@ -3161,7 +3412,7 @@ server<-function(input, output, session) {
     
     output$cplot_pct_under_asian_nra <- renderPlotly({
         
-        dtafig<-dta%>%filter(college==input$college_tab6) 
+        dtafig<-dta%>%filter(college==input$college_tab7) 
         
         dtafig%>%
             plot_ly(
@@ -3190,7 +3441,7 @@ server<-function(input, output, session) {
     
     output$cplot_pct_us_oos <- renderPlotly({
         
-        dtafig<-dta%>%filter(college==input$college_tab6) 
+        dtafig<-dta%>%filter(college==input$college_tab7) 
         
         dtafig%>%
             plot_ly(
@@ -3213,7 +3464,7 @@ server<-function(input, output, session) {
 
     output$cplot_ratio_gender <- renderPlotly({    
         
-        dtafig<-dta%>%filter(college==input$college_tab6) 
+        dtafig<-dta%>%filter(college==input$college_tab7) 
         
         dtafig%>% 
             filter(women!=1)%>%    
@@ -3236,7 +3487,7 @@ server<-function(input, output, session) {
     
     output$cplot_num_student <- renderPlotly({    
         
-        dtafig<-dta%>%filter(college==input$college_tab6) 
+        dtafig<-dta%>%filter(college==input$college_tab7) 
         
         dtafig%>%
             plot_ly(x = ~year, 
@@ -3269,7 +3520,7 @@ server<-function(input, output, session) {
     
     output$cplot_admit_trend_detail <- renderPlotly({    
         
-        dtafig<-dta%>%filter(college==input$college_tab6) 
+        dtafig<-dta%>%filter(college==input$college_tab7) 
         
         dtafig%>%
             plot_ly(
@@ -3324,7 +3575,7 @@ server<-function(input, output, session) {
 
     output$cplot_ed_among_enroll <- renderPlotly({
         
-        dtafig<-dta%>%filter(college==input$college_tab6) 
+        dtafig<-dta%>%filter(college==input$college_tab7) 
         
         dtafig%>%
             plot_ly(
@@ -3349,7 +3600,7 @@ server<-function(input, output, session) {
     
     output$cplot_relnum_trend <- renderPlotly({    
         
-        dtafig<-dta%>%filter(college==input$college_tab6) 
+        dtafig<-dta%>%filter(college==input$college_tab7) 
         
         dtafig%>%
             plot_ly(
@@ -3385,7 +3636,7 @@ server<-function(input, output, session) {
 
     output$cplot_satsubmit <- renderPlotly({
         
-        dtafig<-dta%>%filter(college==input$college_tab6) 
+        dtafig<-dta%>%filter(college==input$college_tab7) 
         
         dtafig%>%
             plot_ly(
@@ -3411,7 +3662,7 @@ server<-function(input, output, session) {
 
     output$cplot_satscores <- renderPlotly({    
         
-        dtafig<-dta%>%filter(college==input$college_tab6) 
+        dtafig<-dta%>%filter(college==input$college_tab7) 
         
         dtafig%>%        
             plot_ly(
@@ -3452,7 +3703,7 @@ server<-function(input, output, session) {
 
     output$cplot_top10th <- renderPlotly({    
         
-        dtafig<-dta%>%filter(college==input$college_tab6) 
+        dtafig<-dta%>%filter(college==input$college_tab7) 
         
         dtafig%>%
             plot_ly(
@@ -3475,7 +3726,7 @@ server<-function(input, output, session) {
 
     output$cplot_numtransapp_total <- renderPlotly({
         
-        dtafig<-dta%>%filter(college==input$college_tab6) 
+        dtafig<-dta%>%filter(college==input$college_tab7) 
         
         dtafig%>%
             plot_ly(
@@ -3500,7 +3751,7 @@ server<-function(input, output, session) {
     
     output$cplot_numtransadmit_total <- renderPlotly({
         
-        dtafig<-dta%>%filter(college==input$college_tab6) 
+        dtafig<-dta%>%filter(college==input$college_tab7) 
         
         dtafig%>%
             plot_ly(
@@ -3525,7 +3776,7 @@ server<-function(input, output, session) {
     
     output$cplot_numtransenroll_total <- renderPlotly({
         
-        dtafig<-dta%>%filter(college==input$college_tab6) 
+        dtafig<-dta%>%filter(college==input$college_tab7) 
         
         dtafig%>%
             plot_ly(
