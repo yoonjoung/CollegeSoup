@@ -29,7 +29,7 @@ date<-as.Date(Sys.time(	), format='%d%b%Y')
 # Load and mutate ----
 # Datasets are prepared using CDS_DataPrepForShiny.Rmd
 
-#setwd("~/Dropbox/0Kids/CDS/Shiny/")
+#setwd("~/Dropbox/0Kids/0iSquareed_CollegeSoup/Shiny/")
 dta <- read_excel("college_data_shiny.xlsx", col_names = TRUE)%>%
     filter(year>=2017)
 
@@ -48,7 +48,8 @@ collegegrouplist<-as.vector(c("All",
                               "Safety (Acceptance rate 50% and more)", 
                               "Open curriculum colleges",
                               "Public universities",
-                              "Women's colleges"))
+                              "Women's colleges",
+                              "West coast colleges"))
 
 grouplist<-as.vector(c("All", 
                               "Group by size", 
@@ -67,7 +68,8 @@ grouplist_admit<-as.vector(c("Below 20%",
 
 grouplist_other<-as.vector(c("Open curriculum colleges",
                             "Public universities",
-                            "Women's colleges"))
+                            "Women's colleges",
+                            "West coast colleges"))
 
 collegelist_all<-as.vector(sort(unique(dta$college)))
 
@@ -89,12 +91,14 @@ collegelist_target<-as.vector(sort(unique(temp$college)))
 temp<-dta%>%filter(pct_admit_safety==1)
 collegelist_safety<-as.vector(sort(unique(temp$college)))
 
+temp<-dta%>%filter(women==1)
+collegelist_women<-as.vector(sort(unique(temp$college)))
 temp<-dta%>%filter(open==1)
 collegelist_open<-as.vector(sort(unique(temp$college)))
 temp<-dta%>%filter(public==1)
 collegelist_public<-as.vector(sort(unique(temp$college)))
-temp<-dta%>%filter(women==1)
-collegelist_women<-as.vector(sort(unique(temp$college)))
+temp<-dta%>%filter(west==1)
+collegelist_west<-as.vector(sort(unique(temp$college)))
 
 ##### 0.3 Define color list #####
 greycolors <- brewer.pal(7,"Greys")
@@ -103,7 +107,7 @@ greencolors <- brewer.pal(7,"Greens")
 orangecolors <- brewer.pal(7,"Oranges")
 redcolors <- brewer.pal(7,"Reds")
 purplecolors <- brewer.pal(7,"Purples")
-divcolors<-brewer.pal(7,"RdYlBu")
+divcolors<-brewer.pal(9,"RdYlBu")
 qualcolors<-brewer.pal(7,"Set3")
 
 ##### 0.4 Define functions for plot #####
@@ -156,7 +160,7 @@ ui<-fluidPage(
        
                     # TAB 1: financial aid ####
                     tabPanel("1. Financial aid overview",
-                            # Top row ####
+                            # top row ####
                             fluidRow(
                                 selectInput("collegegroup_tab1", 
                                              "Select a group of colleges",
@@ -249,7 +253,7 @@ ui<-fluidPage(
                     ),
                     # TAB 2: admission criteria ####
                     tabPanel("2. Admission criteria overview",
-                             # Top row ####
+                             # top row ####
                              fluidRow(
                                  selectInput("collegegroup_tab2", 
                                              "Select a group of colleges",
@@ -310,7 +314,7 @@ ui<-fluidPage(
                     ),          
                     # TAB 3: admission statistics ####
                     tabPanel("3. Admission statistics overview",
-                             # Top row ####
+                             # top row ####
                              fluidRow(
                                  selectInput("collegegroup_tab3", 
                                              "Select a group of colleges", 
@@ -319,14 +323,32 @@ ui<-fluidPage(
                                    actionLink("link_tab3_annex", "See Annex"),
                                    "for the list of colleges in each group.")
                                  ),
-                             # Row 1-2 ####
+                             # Row: admission rates ####
                              fluidRow(   
                                  h4("How has admission changed?", style = "color:blue"),   
-                                 p("Is admission rate really decreasing? Is class size decreasing? Are there more applications?", style = "color:blue"),   
+                                 p("Is admission rate really decreasing? Or is it because of changes in the number of appications (denominator) and/or the number of admitted applicants (numerator)?", style = "color:blue"),   
                                    
                                  column(4,
                                         h5("Admission rates over time (%)"),   
                                         plotlyOutput("plot_admit",
+                                                     width = 400, height = 400)
+                                 ),
+                                 column(4,
+                                        h5("Relative number of applications over time, compared to a reference in the latest year"),    
+                                        plotlyOutput("plot_relnumapp_total",
+                                                     width = 400, height = 400)
+                                 ), 
+                                 column(4,
+                                        h5("Relative number of addmitted over time, compared to a reference in the latest year"),    
+                                        plotlyOutput("plot_relnumadmit_total",
+                                                     width = 400, height = 400)
+                                 )
+                             ),
+                             fluidRow(   
+                                 h4("How about early decision?", style = "color:blue"),   
+                                 column(4,
+                                        h5("Admission rates among overall vs. ED, latest"),   
+                                        plotlyOutput("plot_compare_total_ed",
                                                      width = 400, height = 400)
                                  ),
                                  column(4,
@@ -340,21 +362,50 @@ ui<-fluidPage(
                                                      width = 400, height = 400)
                                  )
                              ),
-                             fluidRow(
+                             fluidRow(  
                                  column(4,
-                                        h5("Relative number of applications over time, compared to a reference in the latest year"),    
-                                        plotlyOutput("plot_relnumapp_total",
-                                                     width = 400, height = 400)
-                                 ), 
-                                 column(4,
-                                        h5("Relative number of addmitted over time, compared to a reference in the latest year"),    
-                                        plotlyOutput("plot_relnumadmit_total",
+                                        h5("Admission rates among overall vs. EA, latest"),   
+                                        plotlyOutput("plot_compare_total_ea",
                                                      width = 400, height = 400)
                                  )
-                             ), 
-                             # Row 3 ####
+                                 # column(4,
+                                 #        h5("Admission rates among EA over time (%)"),   
+                                 #        plotlyOutput("plot_admit_ea",
+                                 #                     width = 400, height = 400)
+                                 # )
+                             ),
+                             fluidRow(   
+                                 column(4,
+                                        h5("Admission rates among in-state vs. out-of-state"),   
+                                        plotlyOutput("plot_compare_instate_oos",
+                                                     width = 400, height = 400)
+                                 ),
+                                 column(4,
+                                        h5("Admission rates among male vs. female"),   
+                                        plotlyOutput("plot_compare_male_female",
+                                                     width = 400, height = 400)
+                                 )
+                             ),    
+                             # Row: relative number changes ####
                              fluidRow(
-                                 h4("Are admitted students more academically qualified than before?", style = "color:blue"), 
+
+                             ), 
+                             # Row: more qualified? ####
+                             fluidRow(
+                                 h4("Are admitted students more academically qualified than before? Review of class rank and GPA", style = "color:blue"), 
+                                 column(4,
+                                        h5("Percent of enrolled students who were in top 10th percentile in their high-school class, trends"),    
+                                        plotlyOutput("plot_top10th",
+                                                     width = 400, height = 400)
+                                 ),
+                                 column(4,
+                                        h5("Percent of enrolled students who have GPA 4.0, trends"),    
+                                        plotlyOutput("plot_gpa4",
+                                                     width = 400, height = 400)
+                                 ) 
+                             ), 
+                             fluidRow(
+                                 h4("Are admitted students more academically qualified than before? Review of SAT scores", style = "color:blue"), 
                                    
                                  column(4,
                                         h5("Percent of enrolled students who submitted SAT scores over time"),   
@@ -372,15 +423,6 @@ ui<-fluidPage(
                                                      width = 400, height = 400)
                                  )
                              ),
-                             # Row 4 ####
-                             fluidRow(
-                                   
-                                 column(4,
-                                        h5("Percent of enrolled students who were in top 10th percentile in their class over time"),    
-                                        plotlyOutput("plot_top10th",
-                                                     width = 400, height = 400)
-                                 ) 
-                             ),   
                              # Row 5 ####
                              fluidRow(
                                  h4("What is relationship between acceptance rates among all vs. ED?", style = "color:blue"),                                  
@@ -392,27 +434,17 @@ ui<-fluidPage(
                              ),
                              # Row 6 ####
                              fluidRow(
-                                 h4("How do yield and retention rates correlated with acceptance rate? And, did retention rate bounce back after 2020?", style = "color:blue"),                                  
+                                 h4("How do yield and retention rates correlated with acceptance rate?", style = "color:blue"),                                  
                                  column(4,
                                         h5("Association between yield rate and acceptance rate"),    
                                         plotlyOutput("plot_yield_admit",
-                                                     width = 400, height = 400)
-                                 ),
-                                 column(4,
-                                        h5("Association between retention rate and acceptance rate"),    
-                                        plotlyOutput("plot_retention_admit",
-                                                     width = 400, height = 400)
-                                 ),
-                                 column(4,
-                                        h5("Retention rate over time"),    
-                                        plotlyOutput("plot_retention_trend",
                                                      width = 400, height = 400)
                                  )
                              )
                     ),
                     # TAB 4: Student population and life ####
                     tabPanel("4. Student population and life overview",
-                             # Top row ####
+                             # top row ####
                              fluidRow(
                                  selectInput("collegegroup_tab4", 
                                             "Select a group of colleges", 
@@ -426,14 +458,19 @@ ui<-fluidPage(
                              fluidRow(
                                  h4("In terms of gender...", style = "color:blue"),  
                                  column(4,
-                                        h5("Number of male students per 100 female students (full-time undergraduate students)"),    
-                                        plotlyOutput("plot_ratiogender",
+                                        h5("Number of male students per 100 female students (full-time undergraduate students), latest year"),    
+                                        plotlyOutput("plot_ratio_gender_rank",
+                                                     width = 400, height = 400)
+                                 ),
+                                 column(4,
+                                        h5("Number of male students per 100 female students (full-time undergraduate students), trend"),    
+                                        plotlyOutput("plot_ratio_gender",
                                                      width = 400, height = 400)
                                  )
                              ),
-                             # Residency ####
+                             # residency ####
                              fluidRow(
-                                 h4("In terms of residency...", style = "color:blue"),                  
+                                 h4("In terms of origin (state residency or citizenship)...", style = "color:blue"),                  
                                  column(4,
                                         h5("Percent of US undergraduates who are out-of-state (%), latest year"),    
                                         plotlyOutput("plot_pct_us_oos_rank",
@@ -447,28 +484,33 @@ ui<-fluidPage(
                              ),
                              fluidRow(
                                  column(4,
-                                        h5("Percent of undergraduate students who are non-resident alien (%), latest year"),     
+                                        h5("Percent of undergraduate students who are non-US citizens (%), latest year"),     
                                         plotlyOutput("plot_pct_under_nra_rank",
                                                      width = 400, height = 400)
                                  ),
                                  column(4,
-                                        h5("Percent of undergraduate students who are non-resident alien (%), trends"),    
+                                        h5("Percent of undergraduate students who are non-US citizens (%), trends"),    
                                         plotlyOutput("plot_pct_under_nra",
                                                      width = 400, height = 400)
                                  )
                              ),                              
-                             # Race ####
+                             # race ####
                              fluidRow(
                                  h4("In terms of race and ethnicity...", style = "color:blue"),  
                                  column(4,
-                                        h5("Percent of undergraduate students who are Asian (%)"),    
+                                        h5("Percent of undergraduate students who are Asian (%), latest year"),    
+                                        plotlyOutput("plot_pct_under_asian_rank",
+                                                     width = 400, height = 400)
+                                 ),     
+                                 column(4,
+                                        h5("Percent of undergraduate students who are Asian (%), trends"),    
                                         plotlyOutput("plot_pct_under_asian",
                                                      width = 400, height = 400)
                                  )                                 
 
                              ), 
                              
-                             # Transfer ####
+                             # transfer ####
                              fluidRow(
                                  h4("How common are transfer students?", style = "color:blue"),
                                  column(4,
@@ -502,7 +544,7 @@ ui<-fluidPage(
                                  )
                              ), 
                              
-                             # Housing ####
+                             # housing ####
                              fluidRow(
                                  h4("In terms of housing ...", style = "color:blue"),  
                                  column(4,
@@ -529,7 +571,7 @@ ui<-fluidPage(
                                  )
                              ),
                              
-                             # Greek life ####
+                             # greek life ####
                              fluidRow(
                                  h4("In terms of Greek life ...", style = "color:blue"),  
                                  column(4,
@@ -553,15 +595,90 @@ ui<-fluidPage(
                                         h5("Percent of undergraduate who are in sororities (%), trends"),  
                                         plotlyOutput("plot_pct_soro",
                                                      width = 400, height = 400)
-                                 ),
+                                 )
                              )
                     ), 
-                    # TAB 5: In-depth insight by college####
-                    tabPanel("5. In-depth insight by college",                             
-                             selectInput("collegegroup_tab5", 
+                    # TAB 5: Education quality  ####
+                    tabPanel("5. Education quality ",
+                             # top row ####
+                             fluidRow(
+                                 selectInput("collegegroup_tab5", 
+                                             "Select a group of colleges", 
+                                             choices = collegegrouplist), 
+                                 p("Note: It includes select colleges of interest.",
+                                   actionLink("link_tab5_annex", "See Annex"),
+                                   "for the list of colleges in each group.") 
+                             ),    
+                             
+                             
+                             # class size ####
+                             fluidRow(
+                                 h4("In terms of undergraduate class size...", style = "color:blue"),
+                                 column(4,
+                                        h5("Percent of undergraduate classes that have less than 20 students"),
+                                        plotlyOutput("plot_class_size_20_rank",
+                                                     width = 400, height = 400)
+                                 ),
+                                 column(4,
+                                        h5("Percent of undergraduate classes that have less than 30 students"),
+                                        plotlyOutput("plot_class_size_30_rank",
+                                                     width = 400, height = 400)
+                                 ),
+                                 column(4,
+                                        h5("Percent distribution of undergraduate classes by size"),
+                                        plotlyOutput("plot_class_size",
+                                                     width = 400, height = 400),
+                                        h6(strong("LEGEND")), 
+                                        h6("2-9", style = "color:#4575b4"),  
+                                        h6("10-19", style = "color:#74add1"),  
+                                        h6("20-29", style = "color:#abd9e9"),  
+                                        h6("30-39", style = "color:#d9d9d9"),  
+                                        
+                                        h6("40-49", style = "color:#fee090"),  
+                                        h6("50-99", style = "color:#f46d43"),  
+                                        h6("100+", style = "color:#d73027")
+                                 )
+                             ),
+                             # retention ####
+                             fluidRow(
+                                 h4("How about retention rates? Did it bounced back after 2020?", style = "color:blue"),                                  
+                                 column(4,
+                                        h5("Retention rate over time"),    
+                                        plotlyOutput("plot_retention_rank",
+                                                     width = 400, height = 400)
+                                 ),                                  
+                                 column(4,
+                                        h5("Retention rate over time"),    
+                                        plotlyOutput("plot_retention_trend",
+                                                     width = 400, height = 400)
+                                 ), 
+                                 column(4,
+                                        h5("Association between retention rate and acceptance rate"),    
+                                        plotlyOutput("plot_retention_admit",
+                                                     width = 400, height = 400)
+                                 )
+                             ),
+                             # graduation ####
+                             fluidRow(
+                                 h4("How about six-year graduation rates? - forthcoming", style = "color:blue"),
+                                 column(4,
+                                        h5("Retention rate over time"),    
+                                        plotlyOutput("plot_graduation_rank",
+                                                     width = 400, height = 400)
+                                 ),                                  
+                                 column(4,
+                                        h5("Retention rate over time"),    
+                                        plotlyOutput("plot_graduation_trend",
+                                                     width = 400, height = 400)
+                                 ), 
+                             )
+                    ),
+                    # TAB 6: In-depth insight by college####
+                    tabPanel("6. In-depth insight by college",                             
+                             selectInput("collegegroup_tab6", 
                                          "Select a group of colleges", 
                                          choices = collegegrouplist), 
-                             selectInput("college_tab5", 
+                             selectInput("college_tab6", 
                                          "Select a college", 
                                          choices = NULL), 
                              # Programs offered ####
@@ -688,7 +805,7 @@ ui<-fluidPage(
                                
                              fluidRow(
                                  column(4,
-                                        h5("Percent of undergraduate students who are Asian or non-resident alien (%)"),    
+                                        h5("Percent of undergraduate students who are Asian or non-US citizens (%)"),    
                                         plotlyOutput("cplot_pct_under_asian_nra",
                                                      width = 400, height = 400)
                                  ),                                 
@@ -741,11 +858,20 @@ ui<-fluidPage(
                                  href="file:///Users/yoonjoungchoi/Downloads/CDS_2022-2023.pdf"),
                                "annual submission by each college: focusing on 2017-2023"),
                              p("2.",
-                               a("College Scorecard",
-                                 href="https://collegescorecard.ed.gov/data/")),
+                               a("Campus Safety and Security (CSS)",
+                                 href="https://ope.ed.gov/campussafety/#/"),
+                               "For", em("safety data")),
+                             p("3.",
+                               a("Integrated Postsecondary Education Data System (IPEDS)",
+                                 href="https://nces.ed.gov/ipeds/"),
+                               "For", em("institutional resorces data")),
+                             # p("4.",
+                             #   a("College Scorecard",
+                             #     href="https://collegescorecard.ed.gov/data/")),
                              
                              hr(), 
                              p(strong("B. List of colleges/universities included")),
+                             h6("Admission rate is an average in the most recent three years."),
                              h6("School-size categorization is based on the total number of full-time undergraduate students and follows:"),
                              
                              #tiny = latest_num_under < 2000,
@@ -1151,7 +1277,7 @@ server<-function(input, output, session) {
                              range=c(0, 100), 
                              showgrid = FALSE, 
                              showticklabels = TRUE),
-                xaxis = list(title = "Year", showgrid = FALSE , range=c(2016, 2023))
+                xaxis = list(title = "Year", showgrid = FALSE , range=c(2016, 2024))
             )
     })       
     
@@ -1172,7 +1298,7 @@ server<-function(input, output, session) {
                 hovertemplate = paste0(
                     dtafig$college,       
                     "<br>Year: ", dtafig$year, 
-                    "<br>Admission rate: ", dtafig$pct_admit_ed, " (%)"))%>%
+                    "<br>ED Admission rate: ", dtafig$pct_admit_ed, " (%)"))%>%
             layout(
                 title = "", showlegend = FALSE, 
                 shapes = list(vline(2021)),
@@ -1180,10 +1306,294 @@ server<-function(input, output, session) {
                              range=c(0, 100), 
                              showgrid = FALSE, 
                              showticklabels = TRUE),
-                xaxis = list(title = "Year", showgrid = FALSE , range=c(2016, 2023))
+                xaxis = list(title = "Year", showgrid = FALSE , range=c(2016, 2024))
             )
     })           
     
+    output$plot_admit_ea <- renderPlotly({    
+        
+        dtafig<-dta%>%
+            filter(grepl(sub("\\'.*", "", 
+                             sub("\\s.*", "", 
+                                 tolower(input$collegegroup_tab3))),
+                         group))
+        
+        dtafig%>%
+            plot_ly(
+                x = ~year, 
+                type="scatter", mode = 'lines+markers', 
+                y = ~pct_admit_ea, 
+                color = ~college, 
+                hovertemplate = paste0(
+                    dtafig$college,       
+                    "<br>Year: ", dtafig$year, 
+                    "<br>EA admission rate: ", dtafig$pct_admit_ea, " (%)"))%>%
+            layout(
+                title = "", showlegend = FALSE, 
+                shapes = list(vline(2021)),
+                yaxis = list(title = "Admission rate among EA (%)",  
+                             range=c(0, 100), 
+                             showgrid = FALSE, 
+                             showticklabels = TRUE),
+                xaxis = list(title = "Year", showgrid = FALSE , range=c(2016, 2024))
+            )
+    })               
+    
+    output$plot_admit_instate <- renderPlotly({    
+        
+        dtafig<-dta%>%
+            filter(grepl(sub("\\'.*", "", 
+                             sub("\\s.*", "", 
+                                 tolower(input$collegegroup_tab3))),
+                         group))
+        
+        dtafig%>%
+            plot_ly(
+                x = ~year, 
+                type="scatter", mode = 'lines+markers', 
+                y = ~pct_admit_instate, 
+                color = ~college, 
+                hovertemplate = paste0(
+                    dtafig$college,       
+                    "<br>Year: ", dtafig$year, 
+                    "<br>In-state admission rate: ", dtafig$pct_admit_instate, " (%)"))%>%
+            layout(
+                title = "", showlegend = FALSE, 
+                shapes = list(vline(2021)),
+                yaxis = list(title = "Admission rate among In-state (%)",  
+                             range=c(0, 100), 
+                             showgrid = FALSE, 
+                             showticklabels = TRUE),
+                xaxis = list(title = "Year", showgrid = FALSE , range=c(2016, 2024))
+            )
+    })              
+    
+    output$plot_admit_oos <- renderPlotly({    
+        
+        dtafig<-dta%>%
+            filter(grepl(sub("\\'.*", "", 
+                             sub("\\s.*", "", 
+                                 tolower(input$collegegroup_tab3))),
+                         group))
+        
+        dtafig%>%
+            plot_ly(
+                x = ~year, 
+                type="scatter", mode = 'lines+markers', 
+                y = ~pct_admit_oos, 
+                color = ~college, 
+                hovertemplate = paste0(
+                    dtafig$college,       
+                    "<br>Year: ", dtafig$year, 
+                    "<br>Out-of-state admission rate: ", dtafig$pct_admit_oos, " (%)"))%>%
+            layout(
+                title = "", showlegend = FALSE, 
+                shapes = list(vline(2021)),
+                yaxis = list(title = "Admission rate among out-of-state (%)",  
+                             range=c(0, 100), 
+                             showgrid = FALSE, 
+                             showticklabels = TRUE),
+                xaxis = list(title = "Year", showgrid = FALSE , range=c(2016, 2024))
+            )
+    })               
+    
+    output$plot_admit_intnl <- renderPlotly({    
+        
+        dtafig<-dta%>%
+            filter(grepl(sub("\\'.*", "", 
+                             sub("\\s.*", "", 
+                                 tolower(input$collegegroup_tab3))),
+                         group))
+        
+        dtafig%>%
+            plot_ly(
+                x = ~year, 
+                type="scatter", mode = 'lines+markers', 
+                y = ~pct_admit_intnl, 
+                color = ~college, 
+                hovertemplate = paste0(
+                    dtafig$college,       
+                    "<br>Year: ", dtafig$year, 
+                    "<br>International admission rate: ", dtafig$pct_admit_intnl, " (%)"))%>%
+            layout(
+                title = "", showlegend = FALSE, 
+                shapes = list(vline(2021)),
+                yaxis = list(title = "Admission rate among international (%)",  
+                             range=c(0, 100), 
+                             showgrid = FALSE, 
+                             showticklabels = TRUE),
+                xaxis = list(title = "Year", showgrid = FALSE , range=c(2016, 2024))
+            )
+    })               
+
+    output$plot_compare_total_ed <- renderPlotly({    
+        
+        dtafig<-dta%>%
+            filter(year==yearlatest)%>%
+            filter(grepl(sub("\\'.*", "", 
+                             sub("\\s.*", "", 
+                                 tolower(input$collegegroup_tab3))),
+                         group))
+        
+        dtafig%>%
+            plot_ly(color = I("gray80"))%>%
+            add_segments(
+                x = ~pct_admit_total, xend = ~pct_admit_ed, 
+                y = ~college, yend = ~college, showlegend = FALSE)%>%
+            add_markers(x = ~pct_admit_total, y = ~college, 
+                        name = "Overall", color = I(greycolors[3]),
+                        hovertemplate = paste0(
+                            dtafig$college,       
+                            "<br>Year: ", dtafig$year, 
+                            "<br>Overall admission rate: ", dtafig$pct_admit_total, " (%)"))%>%
+            add_markers(x = ~pct_admit_ed, y = ~college, 
+                        name = "Early decision", color = I(purplecolors[5]),
+                        hovertemplate = paste0(
+                            dtafig$college,       
+                            "<br>Year: ", dtafig$year, 
+                            "<br>ED admission rate: ", dtafig$pct_admit_ed, " (%)"))%>%
+            layout(
+                title = "",
+                xaxis = list(title = "Admission rate (%)", 
+                             font = list(size=8), showgrid = FALSE,
+                             range=c(0, 100)),
+                yaxis = list(title = " ", 
+                             font = list(size=8), showgrid = FALSE,
+                             categoryorder = "total descending"),
+                legend = list(orientation = "h", font = list(size=8), 
+                              xanchor = "center", x = 0.5, 
+                              yanchor = "top", y = 1.05), 
+                margin = list(l = 65)
+            )
+        
+    })      
+    
+    output$plot_compare_total_ea <- renderPlotly({    
+        
+        dtafig<-dta%>%
+            filter(year==yearlatest)%>%
+            filter(grepl(sub("\\'.*", "", 
+                             sub("\\s.*", "", 
+                                 tolower(input$collegegroup_tab3))),
+                         group))
+        
+        dtafig%>%
+            plot_ly(color = I("gray80"))%>%
+            add_segments(
+                x = ~pct_admit_total, xend = ~pct_admit_ea, 
+                y = ~college, yend = ~college, showlegend = FALSE)%>%
+            add_markers(x = ~pct_admit_total, y = ~college, 
+                        name = "Overall", color = I(greycolors[3]),
+                        hovertemplate = paste0(
+                            dtafig$college,       
+                            "<br>Year: ", dtafig$year, 
+                            "<br>Overall admission rate: ", dtafig$pct_admit_total, " (%)"))%>%
+            add_markers(x = ~pct_admit_ea, y = ~college, 
+                        name = "Early action", color = I(purplecolors[5]),
+                        hovertemplate = paste0(
+                            dtafig$college,       
+                            "<br>Year: ", dtafig$year, 
+                            "<br>EA admission rate: ", dtafig$pct_admit_ea, " (%)"))%>%
+            layout(
+                title = "",
+                xaxis = list(title = "Admission rate (%)", 
+                             font = list(size=8), showgrid = FALSE,
+                             range=c(0, 100)),
+                yaxis = list(title = " ", 
+                             font = list(size=8), showgrid = FALSE,
+                             categoryorder = "total descending"),
+                legend = list(orientation = "h", font = list(size=8), 
+                              xanchor = "center", x = 0.5, 
+                              yanchor = "top", y = 1.05), 
+                margin = list(l = 65)
+            )
+        
+    })      
+    
+    output$plot_compare_instate_oos <- renderPlotly({    
+        
+        dtafig<-dta%>%
+            filter(year==yearlatest)%>%
+            filter(grepl(sub("\\'.*", "", 
+                             sub("\\s.*", "", 
+                                 tolower(input$collegegroup_tab3))),
+                         group))
+
+        dtafig%>%
+            plot_ly(color = I("gray80"))%>%
+            add_segments(
+                x = ~pct_admit_instate, xend = ~pct_admit_oos, 
+                y = ~college, yend = ~college, showlegend = FALSE)%>%
+            add_markers(x = ~pct_admit_instate, y = ~college, 
+                        name = "in-state", color = I("blue"),
+                        hovertemplate = paste0(
+                            dtafig$college,       
+                            "<br>Year: ", dtafig$year, 
+                            "<br>In-state admission rate: ", dtafig$pct_admit_instate, " (%)"))%>%
+            add_markers(x = ~pct_admit_oos, y = ~college, 
+                        name = "out-of-state", color = I("purple"),
+                        hovertemplate = paste0(
+                            dtafig$college,       
+                            "<br>Year: ", dtafig$year, 
+                            "<br>Out-of-state admission rate: ", dtafig$pct_admit_oos, " (%)"))%>%
+            layout(
+                title = "",
+                xaxis = list(title = "Admission rate (%)", 
+                             font = list(size=8), showgrid = FALSE,
+                             range=c(0, 100)),
+                yaxis = list(title = " ", 
+                             font = list(size=8), showgrid = FALSE,
+                             categoryorder = "total descending"),
+                legend = list(orientation = "h", font = list(size=8), 
+                              xanchor = "center", x = 0.5, 
+                              yanchor = "top", y = 1.05), 
+                margin = list(l = 65)
+            )
+            
+    })          
+    
+    output$plot_compare_male_female <- renderPlotly({    
+        
+        dtafig<-dta%>%
+            filter(year==yearlatest)%>%
+            filter(grepl(sub("\\'.*", "", 
+                             sub("\\s.*", "", 
+                                 tolower(input$collegegroup_tab3))),
+                         group))
+        
+        dtafig%>%
+            plot_ly(color = I("gray80"))%>%
+            add_segments(
+                x = ~pct_admit_female, xend = ~pct_admit_male, 
+                y = ~college, yend = ~college, showlegend = FALSE)%>%
+            add_markers(x = ~pct_admit_female, y = ~college, 
+                        name = "female", color = I(redcolors[3]),
+                        hovertemplate = paste0(
+                            dtafig$college,       
+                            "<br>Year: ", dtafig$year, 
+                            "<br>Female admission rate: ", dtafig$pct_admit_female, " (%)"))%>%
+            add_markers(x = ~pct_admit_male, y = ~college, 
+                        name = "male", color = I(bluecolors[3]),
+                        hovertemplate = paste0(
+                            dtafig$college,       
+                            "<br>Year: ", dtafig$year, 
+                            "<br>Male admission rate: ", dtafig$pct_admit_male, " (%)"))%>%
+            layout(
+                title = "",
+                xaxis = list(title = "Admission rate (%)", 
+                             font = list(size=8), showgrid = FALSE,
+                             range=c(0, 100)),
+                yaxis = list(title = " ", 
+                             font = list(size=8), showgrid = FALSE,
+                             categoryorder = "total descending"),
+                legend = list(orientation = "h", font = list(size=8), 
+                              xanchor = "center", x = 0.5, 
+                              yanchor = "top", y = 1.05), 
+                margin = list(l = 65)
+            )
+        
+    })              
+
     output$plot_relnumadmit_total <- renderPlotly({    
         
         dtafig<-dta%>%
@@ -1206,11 +1616,11 @@ server<-function(input, output, session) {
             layout(
                 title = "", showlegend = FALSE, 
                 yaxis = list(title = "Ratio (reference = value in the latest year)",  
-                             range=c(0, 3), 
+                             range=c(0, max(dtafig$relnumadmit_total)), 
                              showgrid = FALSE, 
                              showticklabels = TRUE),
                 shapes = list(hline(1), vline(2021)),
-                xaxis = list(title = "Year", showgrid = FALSE , range=c(2016, 2023))
+                xaxis = list(title = "Year", showgrid = FALSE , range=c(2016, 2024))
             )
         
     })  
@@ -1237,10 +1647,10 @@ server<-function(input, output, session) {
                 title = "", showlegend = FALSE, 
                 shapes = list(hline(1), vline(2021)),
                 yaxis = list(title = "Ratio (reference = value in the latest year)",  
-                             range=c(0, 1.6), 
+                             range=c(0, max(dtafig$relnumapp_total)), 
                              showgrid = FALSE, 
                              showticklabels = TRUE),
-                xaxis = list(title = "Year", showgrid = FALSE , range=c(2016, 2023))
+                xaxis = list(title = "Year", showgrid = FALSE , range=c(2016, 2024))
             )        
     }) 
     
@@ -1297,7 +1707,7 @@ server<-function(input, output, session) {
                              range=c(0,100), 
                              showgrid = FALSE, 
                              showticklabels = TRUE, tickfont = list(size=9)),
-                xaxis = list(title = "Year", showgrid = FALSE , range=c(2016, 2023))
+                xaxis = list(title = "Year", showgrid = FALSE , range=c(2016, 2024))
             )
     })     
     
@@ -1321,11 +1731,11 @@ server<-function(input, output, session) {
             layout(
                 title = "", showlegend = FALSE, 
                 shapes = list(vline(2021), hline(1400)),
-                yaxis = list(title = "SAT score",  
+                yaxis = list(title = "SAT score, composite",  
                              range=c(1100, 1600), 
                              showgrid = FALSE, 
                              showticklabels = TRUE, tickfont = list(size=9)),
-                xaxis = list(title = "Year", showgrid = FALSE , range=c(2016, 2023))
+                xaxis = list(title = "Year", showgrid = FALSE , range=c(2016, 2024))
             )
         
         
@@ -1351,11 +1761,11 @@ server<-function(input, output, session) {
             layout(
                 title = "", showlegend = FALSE, 
                 shapes = list(vline(2021), hline(1400)),
-                yaxis = list(title = "SAT score",  
+                yaxis = list(title = "SAT score, composite",  
                              range=c(1100, 1600), 
                              showgrid = FALSE, 
                              showticklabels = TRUE, tickfont = list(size=9)),
-                xaxis = list(title = "Year", showgrid = FALSE , range=c(2016, 2023))
+                xaxis = list(title = "Year", showgrid = FALSE , range=c(2016, 2024))
             )
         
         
@@ -1385,9 +1795,37 @@ server<-function(input, output, session) {
                              range=c(0,100), 
                              showgrid = FALSE, 
                              showticklabels = TRUE, tickfont = list(size=9)),
-                xaxis = list(title = "Year", showgrid = FALSE , range=c(2016, 2023))
+                xaxis = list(title = "Year", showgrid = FALSE , range=c(2016, 2024))
             )
     }) 
+    
+    output$plot_gpa4 <- renderPlotly({    
+        
+        dtafig<-dta%>%
+            filter(grepl(sub("\\'.*", "", 
+                             sub("\\s.*", "", 
+                                 tolower(input$collegegroup_tab3))),
+                         group))
+        
+        dtafig%>%
+            plot_ly(
+                x = ~year, y = ~pct_gpa4, 
+                type="scatter", mode = 'lines+markers', 
+                color = ~college, 
+                hovertemplate = paste0(
+                    dtafig$college,       
+                    "<br>Year: ", dtafig$year, 
+                    "<br>GPA 4.0 (unweighted): ", dtafig$pct_gpa4, " (%)"))%>%
+            layout(
+                title = "", showlegend = FALSE, 
+                shapes = list(vline(2021), hline(80)),
+                yaxis = list(title = "Percent of enrolled students",  
+                             range=c(0,100), 
+                             showgrid = FALSE, 
+                             showticklabels = TRUE, tickfont = list(size=9)),
+                xaxis = list(title = "Year", showgrid = FALSE , range=c(2016, 2024))
+            )
+    })     
 
     output$plot_ed_among_enroll <- renderPlotly({
         
@@ -1410,12 +1848,12 @@ server<-function(input, output, session) {
                     "<br>ED among enrolled: ", dtafig$pct_ed_among_enroll, " (%)"))%>%
             layout(
                 title = "", showlegend = FALSE, 
-                shapes = list(hline(50), vline(2021)),
+                shapes = list(vline(2021)),
                 yaxis = list(title = "Percent of enrolled students",  
                              range=c(0, 100), 
                              showgrid = FALSE, 
                              showticklabels = TRUE),
-                xaxis = list(title = "Year", showgrid = FALSE , range=c(2016, 2023))
+                xaxis = list(title = "Year", showgrid = FALSE , range=c(2016, 2024))
             )
     })
 
@@ -1483,65 +1921,8 @@ server<-function(input, output, session) {
             )
     })
     
-    output$plot_retention_admit <- renderPlotly({
-        
-        dtafig<-dta%>%
-            filter(grepl(sub("\\'.*", "", 
-                             sub("\\s.*", "", 
-                                 tolower(input$collegegroup_tab3))),
-                         group))
-        
-        dtafig%>%
-            plot_ly(
-                x = ~pct_admit_total, y = ~pct_retention,
-                type="scatter", mode = 'markers', 
-                hovertemplate = paste0(
-                    dtafig$college,       
-                    "<br>Admission rate: ", dtafig$pct_admit_total, " (%)",
-                    "<br>Retention rate: ", dtafig$pct_retention, " (%)",
-                    "<br>Year: ", dtafig$year),            
-                color = ~college)%>%
-            layout(
-                title = "", showlegend = FALSE, 
-                yaxis = list(title = "Retention rate (%)",  
-                             range=c(60, 100), 
-                             showgrid = FALSE, 
-                             showticklabels = TRUE),
-                shapes = list(hline(90)),
-                xaxis = list(title = "Admission rate (%)", showgrid = FALSE , range=c(0, 100))
-            )
-    })    
-    
-    output$plot_retention_trend <- renderPlotly({
-        
-        dtafig<-dta%>%
-            filter(grepl(sub("\\'.*", "", 
-                             sub("\\s.*", "", 
-                                 tolower(input$collegegroup_tab3))),
-                         group))
-        
-        dtafig%>%
-            plot_ly(
-                x = ~year, y = ~pct_retention,
-                type="scatter", mode = 'lines+markers', 
-                color = ~college,
-                hovertemplate = paste0(
-                    dtafig$college,       
-                    "<br>Retention rate: ", dtafig$pct_retention, " (%)",
-                    "<br>Year: ", dtafig$year))%>%
-            layout(
-                title = "", showlegend = FALSE, 
-                shapes = list(hline(90), vline(2021)),
-                yaxis = list(title = "Percent",  
-                             range=c(70, 100), 
-                             showgrid = FALSE, 
-                             showticklabels = TRUE),
-                xaxis = list(title = "Year", showgrid = FALSE , range=c(2016, 2023))
-            )
-    })
-    
     ##### output: Tab 4: student pop + transfer #####    
-    output$plot_ratiogender <- renderPlotly({
+    output$plot_ratio_gender <- renderPlotly({
         
         dtafig<-dta%>%
             filter(grepl(sub("\\'.*", "", 
@@ -1562,12 +1943,44 @@ server<-function(input, output, session) {
                 title = "", showlegend = FALSE, 
                 shapes = list(hline(100), vline(2021)),
                 yaxis = list(title = "Ratio", 
-                             range=c(0, 150),
+                             range=c(0, max(dtafig$ratio_underft_mf)),
                              showgrid = FALSE, 
                              showticklabels = TRUE),
-                xaxis = list(title = "Year", showgrid = FALSE , range=c(2016, 2023))
+                xaxis = list(title = "Year", showgrid = FALSE , range=c(2016, 2024))
             )
     })    
+
+    output$plot_ratio_gender_rank <- renderPlotly({
+        
+        dtafig<-dta%>%
+            filter(grepl(sub("\\'.*", "", 
+                             sub("\\s.*", "", 
+                                 tolower(input$collegegroup_tab4))),
+                         group))%>%
+            filter(year==yearlatest)
+        
+        dtafig%>%
+            plot_ly(
+                y = ~college,
+                type="bar", 
+                x = ~ratio_underft_mf, 
+                text = ~ratio_underft_mf, textposition = 'outside',
+                line = list(color = bluecolors[5]), 
+                marker = list(color = bluecolors[5]),
+                hovertemplate = paste0(
+                    dtafig$college,       
+                    "<br>Number of male students per 100 female students: ", dtafig$ratio_underft_mf))%>%    
+            layout(
+                title = "", 
+                xaxis = list(title = "Number of male students per 100 female students",  
+                             range=c(0, max(dtafig$ratio_underft_mf)), 
+                             showgrid = FALSE, showticklabels = TRUE),
+                yaxis = list(title = "",
+                             tickfont = list(size=9),
+                             categoryorder = "total descending"),
+                showlegend = FALSE
+            )
+    })              
     
     output$plot_pct_under_asian <- renderPlotly({
         
@@ -1591,13 +2004,44 @@ server<-function(input, output, session) {
                 title = "", showlegend = FALSE, 
                 shapes = list(vline(2021), hline(20)),
                 yaxis = list(title = "Percent of undergraduate students",  
-                             range=c(0, 40), 
+                             range=c(0, max(dtafig$pct_under_asian)), 
                              showgrid = FALSE, 
                              showticklabels = TRUE),
-                xaxis = list(title = "Year", showgrid = FALSE , range=c(2016, 2023))
+                xaxis = list(title = "Year", showgrid = FALSE , range=c(2016, 2024))
             )
     })
-    
+
+    output$plot_pct_under_asian_rank <- renderPlotly({
+        
+        dtafig<-dta%>%
+            filter(grepl(sub("\\'.*", "", 
+                             sub("\\s.*", "", 
+                                 tolower(input$collegegroup_tab4))),
+                         group))%>%
+            filter(year==yearlatest)
+        
+        dtafig%>%
+            plot_ly(
+                y = ~college,
+                type="bar", 
+                x = ~pct_under_asian, 
+                text = ~pct_under_asian, textposition = 'outside',
+                line = list(color = bluecolors[5]), 
+                marker = list(color = bluecolors[5]),
+                hovertemplate = paste0(
+                    dtafig$college,       
+                    "<br>% of undergraduate who are Asian: ", dtafig$pct_under_asian, "%"))%>%    
+            layout(
+                title = "", 
+                xaxis = list(title = "Percent undergraduate students",  
+                             range=c(0, 100), 
+                             showgrid = FALSE, showticklabels = TRUE),
+                yaxis = list(title = "",
+                             tickfont = list(size=9),
+                             categoryorder = "total descending"),
+                showlegend = FALSE
+            )
+    })               
     output$plot_pct_under_nra <- renderPlotly({
         
         dtafig<-dta%>%
@@ -1615,15 +2059,15 @@ server<-function(input, output, session) {
                 hovertemplate = paste0(
                     dtafig$college,       
                     "<br>Year: ", dtafig$year, 
-                    "<br>Non-resident Aliens: ", dtafig$pct_under_nra, " (%)"))%>%
+                    "<br>Percent of undergraduates who are non-US citizenss: ", dtafig$pct_under_nra, " (%)"))%>%
             layout(
                 title = "", showlegend = FALSE, 
                 shapes = list(vline(2021), hline(20)),
                 yaxis = list(title = "Percent of undergraduate students",  
-                             range=c(0, 40), 
+                             range=c(0, max(dtafig$pct_under_nra)), 
                              showgrid = FALSE, 
                              showticklabels = TRUE),
-                xaxis = list(title = "Year", showgrid = FALSE , range=c(2016, 2023))
+                xaxis = list(title = "Year", showgrid = FALSE , range=c(2016, 2024))
             )
     })    
 
@@ -1683,7 +2127,7 @@ server<-function(input, output, session) {
                 yaxis = list(title = "Ratio: transfer over freshmen",  
                              showgrid = FALSE, 
                              showticklabels = TRUE),
-                xaxis = list(title = "Year", showgrid = FALSE , range=c(2016, 2023))
+                xaxis = list(title = "Year", showgrid = FALSE , range=c(2016, 2024))
             )
     })      
     
@@ -1740,11 +2184,11 @@ server<-function(input, output, session) {
             layout(
                 title = "", showlegend = FALSE,
                 yaxis = list(title = "Ratio (reference = value in the latest year)",  
-                             range=c(0, 3), 
+                             range=c(0, max(dtafig$relnumtransapp_total)), 
                              showgrid = FALSE, 
                              showticklabels = TRUE),
                 shapes = list(hline(1), vline(2021)),
-                xaxis = list(title = "Year", showgrid = FALSE , range=c(2016, 2023))
+                xaxis = list(title = "Year", showgrid = FALSE , range=c(2016, 2024))
             )
     })
     
@@ -1769,11 +2213,11 @@ server<-function(input, output, session) {
             layout(
                 title = "", showlegend = FALSE,
                 yaxis = list(title = "Ratio (reference = value in the latest year)",  
-                             range=c(0, 3), 
+                             range=c(0, max(dtafig$relnumtransadmit_total)), 
                              showgrid = FALSE, 
                              showticklabels = TRUE),
                 shapes = list(hline(1), vline(2021)),
-                xaxis = list(title = "Year", showgrid = FALSE , range=c(2016, 2023))
+                xaxis = list(title = "Year", showgrid = FALSE , range=c(2016, 2024))
             )
     })
     
@@ -1798,15 +2242,15 @@ server<-function(input, output, session) {
             layout(
                 title = "", showlegend = FALSE,
                 yaxis = list(title = "Ratio (reference = value in the latest year)",  
-                             range=c(0, 3), 
+                             range=c(0, max(dtafig$relnumtransenroll_total)), 
                              showgrid = FALSE, 
                              showticklabels = TRUE),
                 shapes = list(hline(1), vline(2021)),
-                xaxis = list(title = "Year", showgrid = FALSE , range=c(2016, 2023))
+                xaxis = list(title = "Year", showgrid = FALSE , range=c(2016, 2024))
             )
     })    
     
-    ##### output: Tab 4: Student life #####    
+    ##### output: Tab 4: student life #####    
     
     output$plot_pct_us_oos <- renderPlotly({
         
@@ -1833,7 +2277,7 @@ server<-function(input, output, session) {
                              range=c(0, 100), 
                              showgrid = FALSE, 
                              showticklabels = TRUE),
-                xaxis = list(title = "Year", showgrid = FALSE , range=c(2016, 2023))
+                xaxis = list(title = "Year", showgrid = FALSE , range=c(2016, 2024))
             )
     })      
 
@@ -1893,7 +2337,7 @@ server<-function(input, output, session) {
                              range=c(0, 100), 
                              showgrid = FALSE, 
                              showticklabels = TRUE),
-                xaxis = list(title = "Year", showgrid = FALSE , range=c(2016, 2023))
+                xaxis = list(title = "Year", showgrid = FALSE , range=c(2016, 2024))
             )
     })      
 
@@ -1954,7 +2398,7 @@ server<-function(input, output, session) {
                              range=c(0, 100), 
                              showgrid = FALSE, 
                              showticklabels = TRUE),
-                xaxis = list(title = "Year", showgrid = FALSE , range=c(2016, 2023))
+                xaxis = list(title = "Year", showgrid = FALSE , range=c(2016, 2024))
             )
     })      
     
@@ -2015,7 +2459,7 @@ server<-function(input, output, session) {
                              range=c(0, 100), 
                              showgrid = FALSE, 
                              showticklabels = TRUE),
-                xaxis = list(title = "Year", showgrid = FALSE , range=c(2016, 2023))
+                xaxis = list(title = "Year", showgrid = FALSE , range=c(2016, 2024))
             )
     })      
     
@@ -2075,7 +2519,7 @@ server<-function(input, output, session) {
                              range=c(0, 100), 
                              showgrid = FALSE, 
                              showticklabels = TRUE),
-                xaxis = list(title = "Year", showgrid = FALSE , range=c(2016, 2023))
+                xaxis = list(title = "Year", showgrid = FALSE , range=c(2016, 2024))
             )
     })      
     
@@ -2111,13 +2555,348 @@ server<-function(input, output, session) {
             )
     })        
     
-
-    
     ##### output: Tab 5 #####
 
-    observeEvent(input$collegegroup_tab5, {
+    output$plot_class_size_30_rank <- renderPlotly({
+        
+        dtafig<-dta%>%
+            filter(grepl(sub("\\'.*", "", 
+                             sub("\\s.*", "", 
+                                 tolower(input$collegegroup_tab5))),
+                         group))%>%
+            filter(year==yearlatest)
+        
+        dtafig%>%
+            plot_ly(
+                y = ~college,
+                type="bar", 
+                x = ~pct_class30, 
+                text = ~pct_class30, textposition = 'outside',
+                line = list(color = divcolors[7]), 
+                marker = list(color = divcolors[7]),
+                hovertemplate = paste0(
+                    dtafig$college,       
+                    "<br>Percent of undergraduate classes", 
+                    "<br>with less than 30 students: ", dtafig$pct_class30, "%"))%>%    
+            layout(
+                title = "", 
+                xaxis = list(title = "Percent of undergraduate classes (%)",  
+                             range=c(0, 100), 
+                             showgrid = FALSE, showticklabels = TRUE),
+                yaxis = list(title = "",
+                             tickfont = list(size=9),
+                             categoryorder = "total descending"),
+                showlegend = FALSE
+            )
+    })        
+    
+    output$plot_class_size_20_rank <- renderPlotly({
+        
+        dtafig<-dta%>%
+            filter(grepl(sub("\\'.*", "", 
+                             sub("\\s.*", "", 
+                                 tolower(input$collegegroup_tab5))),
+                         group))%>%
+            filter(year==yearlatest)
+        
+        dtafig%>%
+            plot_ly(
+                y = ~college,
+                type="bar", 
+                x = ~pct_class20, 
+                text = ~pct_class20, textposition = 'outside',
+                line = list(color = divcolors[8]), 
+                marker = list(color = divcolors[8]),
+                hovertemplate = paste0(
+                    dtafig$college,       
+                    "<br>Percent of undergraduate classes", 
+                    "<br>with less than 20 students: ", dtafig$pct_class20, "%"))%>%    
+            layout(
+                title = "", 
+                xaxis = list(title = "Percent of undergraduate classes (%)",  
+                             range=c(0, 100), 
+                             showgrid = FALSE, showticklabels = TRUE),
+                yaxis = list(title = "",
+                             tickfont = list(size=9),
+                             categoryorder = "total descending"),
+                showlegend = FALSE
+            )
+    })        
+
+    output$plot_class_size <- renderPlotly({
+        
+        dtafig<-dta%>%
+            filter(grepl(sub("\\'.*", "",
+                             sub("\\s.*", "",
+                                 tolower(input$collegegroup_tab5))),
+                         group))%>%
+            filter(year==yearlatest)%>%
+            select(college, year, starts_with("pct_class_"))
+        
+        dtafig%>%
+            plot_ly(
+                y = ~college, 
+                type="bar", 
+                x = ~pct_class_2_9,
+                hovertemplate = ~paste(
+                    '</br>', college,          
+                    '</br>Class-size: 2-9', 
+                    '</br>Percent of classes: ', pct_class_2_9, "%"), 
+                line = list(color = divcolors[9]), marker = list(color = divcolors[9]))%>%
+            add_trace(
+                x = ~pct_class_10_19,
+                hovertemplate = ~paste(
+                    '</br>', college,          
+                    '</br>Class-size: 10-19', 
+                    '</br>Percent of classes: ', pct_class_10_19, "%"), 
+                line = list(color = divcolors[8]), marker = list(color = divcolors[8]))%>%
+            add_trace(
+                x = ~pct_class_20_29,
+                hovertemplate = ~paste(
+                    '</br>', college,          
+                    '</br>Class-size: 20-29', 
+                    '</br>Percent of classes: ', pct_class_20_29, "%"), 
+                line = list(color = divcolors[7]), marker = list(color = divcolors[7]))%>%
+            add_trace(
+                x = ~pct_class_30_39,
+                hovertemplate = ~paste(
+                    '</br>', college,          
+                    '</br>Class-size: 30-39', 
+                    '</br>Percent of classes: ', pct_class_30_39, "%"), 
+                line = list(color = greycolors[2]), marker = list(color = greycolors[2]))%>%
+            add_trace(
+                x = ~pct_class_40_49,
+                hovertemplate = ~paste(
+                    '</br>', college,          
+                    '</br>Class-size: 40-49', 
+                    '</br>Percent of classes: ', pct_class_40_49, "%"), 
+                line = list(color = divcolors[4]), marker = list(color = divcolors[4]))%>%
+            add_trace(
+                x = ~pct_class_50_99,
+                hovertemplate = ~paste(
+                    '</br>', college,          
+                    '</br>Class-size: 50-99', 
+                    '</br>Percent of classes: ', pct_class_50_99, "%"), 
+                line = list(color = divcolors[2]), marker = list(color = divcolors[2]))%>%
+            add_trace(
+                x = ~pct_class_100,
+                hovertemplate = ~paste(
+                    '</br>', college,          
+                    '</br>Class-size: 100+', 
+                    '</br>Percent of classes: ', pct_class_100, "%"), 
+                line = list(color = divcolors[1]), marker = list(color = divcolors[1]))%>%
+            layout(
+                title = "", showlegend = FALSE, 
+                yaxis = list(title = "",
+                             tickfont=list(size=9),
+                             categoryorder = "total descending"),
+                xaxis = list(title = "Percent of undergraduate classes (%)",
+                             range=c(0, 100), 
+                             showgrid = FALSE, showticklabels = TRUE), 
+                barmode = 'stack'
+            ) 
+    })    
+    
+    output$plot_class_size2 <- renderPlotly({
+        
+        dtafig<-dta%>%
+            filter(grepl(sub("\\'.*", "",
+                             sub("\\s.*", "",
+                                 tolower(input$collegegroup_tab5))),
+                         group))%>%
+            filter(year==yearlatest)%>%
+            select(college, year, starts_with("pct_class_"))
+        
+        dtafig<-reshape(dtafig,
+                        direction='long', 
+                        varying=colnames(dtafig[, 3:ncol(dtafig)]), 
+                        timevar="class.size",
+                        times=c("2_9", "10_19", "20_29", "30_39", "40_49", "50_99", "100+"),
+                        v.names=c("pct_class"),
+                        idvar=c("college", "year"))%>%
+            mutate(
+                size = sub("\\_.*", "", class.size),
+                size = sub("\\+.*", "", size), 
+                size = as.numeric(size))
+        
+        dtafig %>% 
+            plot_ly( y = ~college, x = ~pct_class, type = "bar",
+                     hovertemplate = ~paste(
+                         '</br>', college,          
+                         '</br> Class-size: ', class.size,
+                         '</br> Percent of all undergraduate classes(%): ', pct_class), 
+                     color= ~size, 
+                     colors = brewer.pal(length(unique(dtafig$size)),
+                                         "Spectral", 
+                                         direction = -1)) %>%
+            layout(
+                yaxis = list(title = "",
+                             tickfont=list(size=9),
+                             categoryorder = "total descending"),
+                xaxis = list(title = "Percent of undergraduate classes",
+                             titlefont=list(size=9),
+                             range=c(0, 100), 
+                             showgrid = FALSE, showticklabels = TRUE), 
+                legend = list(font=list(size=9)), 
+                barmode = 'stack'
+            ) 
+        
+    })    
+    
+    output$plot_retention_rank <- renderPlotly({
+        
+        dtafig<-dta%>%
+            filter(grepl(sub("\\'.*", "", 
+                             sub("\\s.*", "", 
+                                 tolower(input$collegegroup_tab5))),
+                         group))%>%
+            filter(year==yearlatest)
+        
+        dtafig%>%
+            plot_ly(
+                y = ~college,
+                type="bar", 
+                x = ~pct_retention, 
+                text = ~pct_retention, textposition = 'outside',
+                line = list(color = bluecolors[5]), 
+                marker = list(color = bluecolors[5]),
+                hovertemplate = paste0(
+                    dtafig$college,       
+                    "<br>Retnetion rate: ", dtafig$pct_retention, "%"))%>%    
+            layout(
+                title = "", 
+                xaxis = list(title = "Percent freshmen returning for second year (%)",  
+                             range=c(0, 100), 
+                             showgrid = FALSE, showticklabels = TRUE),
+                yaxis = list(title = "",
+                             tickfont = list(size=9),
+                             categoryorder = "total descending"),
+                showlegend = FALSE
+            )
+    })    
+    
+    output$plot_retention_admit <- renderPlotly({
+        
+        dtafig<-dta%>%
+            filter(grepl(sub("\\'.*", "", 
+                             sub("\\s.*", "", 
+                                 tolower(input$collegegroup_tab5))),
+                         group))
+        
+        dtafig%>%
+            plot_ly(
+                x = ~pct_admit_total, y = ~pct_retention,
+                type="scatter", mode = 'markers', 
+                hovertemplate = paste0(
+                    dtafig$college,       
+                    "<br>Admission rate: ", dtafig$pct_admit_total, " (%)",
+                    "<br>Retention rate: ", dtafig$pct_retention, " (%)",
+                    "<br>Year: ", dtafig$year),            
+                color = ~college)%>%
+            layout(
+                title = "", showlegend = FALSE, 
+                yaxis = list(title = "Retention rate (%)",  
+                             range=c(60, 100), 
+                             showgrid = FALSE, 
+                             showticklabels = TRUE),
+                shapes = list(hline(90)),
+                xaxis = list(title = "Admission rate (%)", showgrid = FALSE , range=c(0, 100))
+            )
+    })    
+    
+    output$plot_retention_trend <- renderPlotly({
+        
+        dtafig<-dta%>%
+            filter(grepl(sub("\\'.*", "", 
+                             sub("\\s.*", "", 
+                                 tolower(input$collegegroup_tab5))),
+                         group))
+        
+        dtafig%>%
+            plot_ly(
+                x = ~year, y = ~pct_retention,
+                type="scatter", mode = 'lines+markers', 
+                color = ~college,
+                hovertemplate = paste0(
+                    dtafig$college,       
+                    "<br>Retention rate: ", dtafig$pct_retention, " (%)",
+                    "<br>Year: ", dtafig$year))%>%
+            layout(
+                title = "", showlegend = FALSE, 
+                shapes = list(hline(90), vline(2021)),
+                yaxis = list(title = "Percent",  
+                             range=c(70, 100), 
+                             showgrid = FALSE, 
+                             showticklabels = TRUE),
+                xaxis = list(title = "Year", showgrid = FALSE , range=c(2016, 2024))
+            )
+    })
+    
+    output$plot_graduation_rank <- renderPlotly({
+        
+        dtafig<-dta%>%
+            filter(grepl(sub("\\'.*", "", 
+                             sub("\\s.*", "", 
+                                 tolower(input$collegegroup_tab5))),
+                         group))%>%
+            filter(year==yearlatest)
+        
+        dtafig%>%
+            plot_ly(
+                y = ~college,
+                type="bar", 
+                x = ~pct_graduation, 
+                text = ~pct_graduation, textposition = 'outside',
+                line = list(color = bluecolors[5]), 
+                marker = list(color = bluecolors[5]),
+                hovertemplate = paste0(
+                    dtafig$college,       
+                    "<br>Six-year graduation rate: ", dtafig$pct_graduation, "%"))%>%    
+            layout(
+                title = "", 
+                xaxis = list(title = "Percent cohord graduating in six years (%)",  
+                             range=c(0, 100), 
+                             showgrid = FALSE, showticklabels = TRUE),
+                yaxis = list(title = "",
+                             tickfont = list(size=9),
+                             categoryorder = "total descending"),
+                showlegend = FALSE
+            )
+    })       
+    
+    output$plot_graduation_trend <- renderPlotly({
+        
+        dtafig<-dta%>%
+            filter(grepl(sub("\\'.*", "", 
+                             sub("\\s.*", "", 
+                                 tolower(input$collegegroup_tab5))),
+                         group))
+        
+        dtafig%>%
+            plot_ly(
+                x = ~year, y = ~pct_graduation,
+                type="scatter", mode = 'lines+markers', 
+                color = ~college,
+                hovertemplate = paste0(
+                    dtafig$college,       
+                    "<br>Six-year graduation rate: ", dtafig$pct_graduation, " (%)",
+                    "<br>Year: ", dtafig$year))%>%
+            layout(
+                title = "", showlegend = FALSE, 
+                shapes = list(hline(90), vline(2021)),
+                yaxis = list(title = "Percent",  
+                             range=c(min(dtafig$pct_graduation), 100), 
+                             showgrid = FALSE, 
+                             showticklabels = TRUE),
+                xaxis = list(title = "Year", showgrid = FALSE , range=c(2016, 2024))
+            )
+    })    
+    
+    ##### output: Tab 6 #####
+
+    observeEvent(input$collegegroup_tab6, {
         # Define choices for the second selectInput based on the first choice
-        college_tab5 <- switch(input$collegegroup_tab5,
+        college_tab6 <- switch(input$collegegroup_tab6,
                                "All" = collegelist_all, 
                                "Size: Tiny (undergraduate <2000)" = collegelist_tiny, 
                                "Size: Small (undergraduate 2K-5K)" = collegelist_small, 
@@ -2131,24 +2910,25 @@ server<-function(input, output, session) {
                                
                                "Open curriculum colleges" = collegelist_open,
                                "Public universities" = collegelist_public,
-                               "Women's colleges" = collegelist_women
+                               "Women's colleges" = collegelist_women,
+                               "West coast colleges" = collegelist_west
                                )
 
         # Update the choices for the second selectInput
-        updateSelectInput(session, "college_tab5", choices = college_tab5)
+        updateSelectInput(session, "college_tab6", choices = college_tab6)
     })
     
     output$text_college <- renderText({
-        paste(input$college_tab5) 
+        paste(input$college_tab6) 
     })        
 
     output$text_offer <- renderText({
-        paste("Does", input$college_tab5, "provide the following?") 
+        paste("Does", input$college_tab6, "provide the following?") 
     })    
     
     output$text_offer1 <- renderText({
         
-        dtafig<-dta%>%filter(college==input$college_tab5)%>%
+        dtafig<-dta%>%filter(college==input$college_tab6)%>%
             filter(year==yearlatest)
         
         paste("Cross-registration:", dtafig$offer_cross)
@@ -2156,7 +2936,7 @@ server<-function(input, output, session) {
     
     output$table_offer <- renderTable({
         
-        dtafig<-dta%>%filter(college==input$college_tab5)%>%
+        dtafig<-dta%>%filter(college==input$college_tab6)%>%
         #dtafig<-dta%>%filter(college=="Middlebury")%>%    
             filter(year==yearlatest)%>%
             select(starts_with("offer_"))
@@ -2187,7 +2967,7 @@ server<-function(input, output, session) {
 
     output$cplot_pct_assistance <- renderPlotly({    
         
-        dtafig<-dtaall_latest%>%filter(college==input$college_tab5) 
+        dtafig<-dtaall_latest%>%filter(college==input$college_tab6) 
         
         dtafig%>%
             plot_ly(
@@ -2234,7 +3014,7 @@ server<-function(input, output, session) {
     
     output$cplot_amount_assistance <- renderPlotly({
         
-        dtafig<-dtaall_latest%>%filter(college==input$college_tab5) 
+        dtafig<-dtaall_latest%>%filter(college==input$college_tab6) 
         
         dtafig%>%
             plot_ly(
@@ -2280,7 +3060,7 @@ server<-function(input, output, session) {
             ) %>%              
             layout(
                 title = "", 
-                yaxis = list(title = "Average amount ($)", range=c(0, 80000),  
+                yaxis = list(title = "Average amount ($)", range=c(0, max(dtafig$totalcost)),  
                              showgrid = FALSE, showticklabels = TRUE),
                 xaxis = list(title = "", 
                              tickfont = list(size=9),
@@ -2295,7 +3075,7 @@ server<-function(input, output, session) {
     output$cplot_aca <- renderPlotly({    
         
         dtafig<-dta%>%
-            filter(college==input$college_tab5)%>% 
+            filter(college==input$college_tab6)%>% 
             filter(year==yearlatest)%>%
             select(college, starts_with(c("num_aca_")))
         
@@ -2338,7 +3118,7 @@ server<-function(input, output, session) {
     output$cplot_acna <- renderPlotly({    
         
         dtafig<-dta%>%
-            filter(college==input$college_tab5)%>% 
+            filter(college==input$college_tab6)%>% 
             filter(year==yearlatest)%>%
             select(college, starts_with(c("num_acna_")))
         
@@ -2381,7 +3161,7 @@ server<-function(input, output, session) {
     
     output$cplot_pct_under_asian_nra <- renderPlotly({
         
-        dtafig<-dta%>%filter(college==input$college_tab5) 
+        dtafig<-dta%>%filter(college==input$college_tab6) 
         
         dtafig%>%
             plot_ly(
@@ -2399,10 +3179,10 @@ server<-function(input, output, session) {
                 title = "", 
                 shapes = list(vline(2021), hline(20)),
                 yaxis = list(title = "Percent of undergraduate students",  
-                             range=c(0, 40), 
+                             range=c(0, max(dtafig$pct_under_asian)+10), 
                              showgrid = FALSE, 
                              showticklabels = TRUE),
-                xaxis = list(title = "Year", showgrid = FALSE , range=c(2016, 2023)),
+                xaxis = list(title = "Year", showgrid = FALSE , range=c(2016, 2024)),
                 legend = list(orientation = "v", font = list(size=9), 
                               xanchor = "left", x = 0.05)
             )
@@ -2410,7 +3190,7 @@ server<-function(input, output, session) {
     
     output$cplot_pct_us_oos <- renderPlotly({
         
-        dtafig<-dta%>%filter(college==input$college_tab5) 
+        dtafig<-dta%>%filter(college==input$college_tab6) 
         
         dtafig%>%
             plot_ly(
@@ -2426,14 +3206,14 @@ server<-function(input, output, session) {
                              range=c(0, 100), 
                              showgrid = FALSE, 
                              showticklabels = TRUE),
-                xaxis = list(title = "Year", showgrid = FALSE , range=c(2016, 2023)),
+                xaxis = list(title = "Year", showgrid = FALSE , range=c(2016, 2024)),
                 showlegend = FALSE
             )
     })   
 
     output$cplot_ratio_gender <- renderPlotly({    
         
-        dtafig<-dta%>%filter(college==input$college_tab5) 
+        dtafig<-dta%>%filter(college==input$college_tab6) 
         
         dtafig%>% 
             filter(women!=1)%>%    
@@ -2446,17 +3226,17 @@ server<-function(input, output, session) {
                 title = "", 
                 shapes = list(hline(100), vline(2021)),
                 yaxis = list(title = "Ratio",  
-                             range=c(0, 150),
+                             range=c(0, max(dtafig$ratio_underft_mf)),
                              showgrid = FALSE, 
                              showticklabels = TRUE),
-                xaxis = list(title = "Year", showgrid = FALSE , range=c(2016, 2023)),
+                xaxis = list(title = "Year", showgrid = FALSE , range=c(2016, 2024)),
                 showlegend = FALSE
             )
     })
     
     output$cplot_num_student <- renderPlotly({    
         
-        dtafig<-dta%>%filter(college==input$college_tab5) 
+        dtafig<-dta%>%filter(college==input$college_tab6) 
         
         dtafig%>%
             plot_ly(x = ~year, 
@@ -2480,7 +3260,7 @@ server<-function(input, output, session) {
                              range=c(0, max(dtafig$num_total)), 
                              showgrid = FALSE, 
                              showticklabels = TRUE),
-                xaxis = list(title = "Year", showgrid = FALSE , range=c(2016, 2023)),
+                xaxis = list(title = "Year", showgrid = FALSE , range=c(2016, 2024)),
                 legend = list(orientation = "v", font = list(size=9), 
                               xanchor = "left", x = 0.05, 
                               xanchor = "center", y = 0.5 )
@@ -2489,7 +3269,7 @@ server<-function(input, output, session) {
     
     output$cplot_admit_trend_detail <- renderPlotly({    
         
-        dtafig<-dta%>%filter(college==input$college_tab5) 
+        dtafig<-dta%>%filter(college==input$college_tab6) 
         
         dtafig%>%
             plot_ly(
@@ -2510,7 +3290,23 @@ server<-function(input, output, session) {
             add_trace(y = ~pct_admit_ed, 
                       name="Early decision",
                       line = list(color = purplecolors[5]),
-                      marker = list(color = purplecolors[5]))%>%             
+                      marker = list(color = purplecolors[5]))%>%    
+            add_trace(y = ~pct_admit_ea, 
+                      name="Early action",
+                      line = list(color = purplecolors[3]),
+                      marker = list(color = purplecolors[3]))%>%   
+            add_trace(y = ~pct_admit_instate, 
+                      name="In-state",
+                      line = list(color = bluecolors[6]),
+                      marker = list(color = bluecolors[6]))%>%               
+            add_trace(y = ~pct_admit_oos, 
+                      name="Out-of-state, US",
+                      line = list(color = bluecolors[4]),
+                      marker = list(color = bluecolors[4]))%>%               
+            add_trace(y = ~pct_admit_oos, 
+                      name="International",
+                      line = list(color = bluecolors[2]),
+                      marker = list(color = bluecolors[2]))%>%               
             layout(
                 title = "", 
                 shapes = list(vline(2021)),
@@ -2518,7 +3314,7 @@ server<-function(input, output, session) {
                              range=c(0, 100), 
                              showgrid = FALSE, 
                              showticklabels = TRUE),
-                xaxis = list(title = "Year", showgrid = FALSE , range=c(2016, 2023)),
+                xaxis = list(title = "Year", showgrid = FALSE , range=c(2016, 2024)),
                 legend = list(orientation = "v", font = list(size=9), 
                               xanchor = "left", x = 0.05)
                 #legend = list(orientation = "h",   # show entries horizontally
@@ -2528,7 +3324,7 @@ server<-function(input, output, session) {
 
     output$cplot_ed_among_enroll <- renderPlotly({
         
-        dtafig<-dta%>%filter(college==input$college_tab5) 
+        dtafig<-dta%>%filter(college==input$college_tab6) 
         
         dtafig%>%
             plot_ly(
@@ -2547,13 +3343,13 @@ server<-function(input, output, session) {
                              range=c(0, 100), 
                              showgrid = FALSE, 
                              showticklabels = TRUE),
-                xaxis = list(title = "Year", showgrid = FALSE , range=c(2016, 2023))
+                xaxis = list(title = "Year", showgrid = FALSE , range=c(2016, 2024))
             )
     })
     
     output$cplot_relnum_trend <- renderPlotly({    
         
-        dtafig<-dta%>%filter(college==input$college_tab5) 
+        dtafig<-dta%>%filter(college==input$college_tab6) 
         
         dtafig%>%
             plot_ly(
@@ -2580,8 +3376,8 @@ server<-function(input, output, session) {
                 shapes = list(vline(2021), hline(1)),
                 yaxis = list(title = "Relative change (reference = 2022)",
                              showgrid = FALSE, showticklabels = TRUE,
-                             range=c(0, 2.5)), 
-                xaxis = list(title = "Year", showgrid = FALSE , range=c(2016, 2023)),
+                             range=c(0, max(dtafig$relnumapp_total))), 
+                xaxis = list(title = "Year", showgrid = FALSE , range=c(2016, 2024)),
                 legend = list(orientation = "v", font = list(size=9), 
                               xanchor = "left", x = 0.05)
             )
@@ -2589,7 +3385,7 @@ server<-function(input, output, session) {
 
     output$cplot_satsubmit <- renderPlotly({
         
-        dtafig<-dta%>%filter(college==input$college_tab5) 
+        dtafig<-dta%>%filter(college==input$college_tab6) 
         
         dtafig%>%
             plot_ly(
@@ -2608,14 +3404,14 @@ server<-function(input, output, session) {
                              range=c(0,100), 
                              showgrid = FALSE, 
                              showticklabels = TRUE, tickfont = list(size=9)),
-                xaxis = list(title = "Year", showgrid = FALSE , range=c(2016, 2023)),
+                xaxis = list(title = "Year", showgrid = FALSE , range=c(2016, 2024)),
                 showlegend = FALSE
             )
     })
 
     output$cplot_satscores <- renderPlotly({    
         
-        dtafig<-dta%>%filter(college==input$college_tab5) 
+        dtafig<-dta%>%filter(college==input$college_tab6) 
         
         dtafig%>%        
             plot_ly(
@@ -2647,7 +3443,7 @@ server<-function(input, output, session) {
                              range=c(1100, 1600), 
                              showgrid = FALSE, 
                              showticklabels = TRUE, tickfont = list(size=9)),
-                xaxis = list(title = "Year", showgrid = FALSE , range=c(2016, 2023)),
+                xaxis = list(title = "Year", showgrid = FALSE , range=c(2016, 2024)),
                 legend = list(orientation = "v", font = list(size=9), 
                               xanchor = "right", x = 0.95,
                               yanchor = "bottom", y = 0.05)
@@ -2656,7 +3452,7 @@ server<-function(input, output, session) {
 
     output$cplot_top10th <- renderPlotly({    
         
-        dtafig<-dta%>%filter(college==input$college_tab5) 
+        dtafig<-dta%>%filter(college==input$college_tab6) 
         
         dtafig%>%
             plot_ly(
@@ -2672,14 +3468,14 @@ server<-function(input, output, session) {
                              range=c(0,100), 
                              showgrid = FALSE, 
                              showticklabels = TRUE, tickfont = list(size=9)),
-                xaxis = list(title = "Year", showgrid = FALSE , range=c(2016, 2023)),
+                xaxis = list(title = "Year", showgrid = FALSE , range=c(2016, 2024)),
                 showlegend = FALSE
             )
     })    
 
     output$cplot_numtransapp_total <- renderPlotly({
         
-        dtafig<-dta%>%filter(college==input$college_tab5) 
+        dtafig<-dta%>%filter(college==input$college_tab6) 
         
         dtafig%>%
             plot_ly(
@@ -2694,17 +3490,17 @@ server<-function(input, output, session) {
             layout(
                 title = "", showlegend = FALSE,
                 yaxis = list(title = "Ratio (reference = value in the latest year)",  
-                             range=c(0, 3), 
+                             range=c(0, max(dtafig$numtransapp_total)), 
                              showgrid = FALSE, 
                              showticklabels = TRUE),
                 shapes = list(hline(1), vline(2021)),
-                xaxis = list(title = "Year", showgrid = FALSE , range=c(2016, 2023))
+                xaxis = list(title = "Year", showgrid = FALSE , range=c(2016, 2024))
             )
     })
     
     output$cplot_numtransadmit_total <- renderPlotly({
         
-        dtafig<-dta%>%filter(college==input$college_tab5) 
+        dtafig<-dta%>%filter(college==input$college_tab6) 
         
         dtafig%>%
             plot_ly(
@@ -2719,17 +3515,17 @@ server<-function(input, output, session) {
             layout(
                 title = "", showlegend = FALSE,
                 yaxis = list(title = "Ratio (reference = value in the latest year)",  
-                             range=c(0, 3), 
+                             range=c(0, max(dtafig$numtransadmit_total)), 
                              showgrid = FALSE, 
                              showticklabels = TRUE),
                 shapes = list(hline(1), vline(2021)),
-                xaxis = list(title = "Year", showgrid = FALSE , range=c(2016, 2023))
+                xaxis = list(title = "Year", showgrid = FALSE , range=c(2016, 2024))
             )
     })
     
     output$cplot_numtransenroll_total <- renderPlotly({
         
-        dtafig<-dta%>%filter(college==input$college_tab5) 
+        dtafig<-dta%>%filter(college==input$college_tab6) 
         
         dtafig%>%
             plot_ly(
@@ -2744,11 +3540,11 @@ server<-function(input, output, session) {
             layout(
                 title = "", showlegend = FALSE,
                 yaxis = list(title = "Ratio (reference = value in the latest year)",  
-                             range=c(0, 3), 
+                             range=c(0, max(dtafig$numtransenroll_total)), 
                              showgrid = FALSE, 
                              showticklabels = TRUE),
                 shapes = list(hline(1), vline(2021)),
-                xaxis = list(title = "Year", showgrid = FALSE , range=c(2016, 2023))
+                xaxis = list(title = "Year", showgrid = FALSE , range=c(2016, 2024))
             )
     })
     
@@ -2781,7 +3577,7 @@ server<-function(input, output, session) {
         
         temp<-dta%>%filter(year==yearlatest)%>%
             select(college, latest_num_under, 
-                   groupsize, groupadmit, open, public, women)%>%
+                   groupsize, groupadmit, open, public, women, west)%>%
             filter(is.na(groupsize)==FALSE)%>%
             rename(
                 undergraduate.size = latest_num_under, 
