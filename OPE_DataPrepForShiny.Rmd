@@ -203,16 +203,24 @@ colnames(dta_vawa)
 
 ```        
 
-# Gen var: group
+# Gen var
 ```{r genvar_arrests, results='hide'}
 temp<-dta_arrests
 
+# temp<-temp%>%
+#     filter(institution_name=="Johns Hopkins University")%>%
+#     arrange(institution_name, opeid, campus_name, campus_id, survey_year )%>%
+#     filter(campus_id<=2)%>%
+#     filter(survey_year>=2017)
+# 
+# dim(temp)
 dta <- temp%>%
     select(institution_name, opeid, campus_name, campus_id, survey_year, 
              institution_size, colnames(temp[9: ncol(temp)-1]))%>%
     group_by(institution_name, opeid, campus_name, campus_id, survey_year, 
              institution_size)%>%
     summarise_all(list(sum), na.rm = TRUE)
+# dim(dta)
 
 dta$total_arrests <- rowSums(dta[ , colnames(dta[ , 7:ncol(dta)])])
 
@@ -268,10 +276,17 @@ colnames(dta)
 ```
 
 ```{r genvar_more}
+#create duplicate of numbers
+dtarate<-dta[ , 7:ncol(dta)]
+colnames(dtarate) <- paste("rate", colnames(dtarate), sep = "_")
+
+#cbind back 
+dta<-cbind(dta, dtarate)
+
 #convert to rate 
 dta<-dta%>%
-    mutate_at(vars(colnames(dta[ , 7:ncol(dta)]) ), 
-              funs( round(1000* . / institution_size, 1) ) )
+    mutate_at(vars(starts_with("rate_")), 
+              funs( round(1000* . / institution_size, 2) ) )
 
 ```    
               
@@ -328,3 +343,218 @@ write_xlsx(dta,
            col_names = TRUE)
 
 ```
+
+# Plot tests
+
+```{r}
+##### 0.3 Define color list #####
+greycolors <- brewer.pal(7,"Greys")
+bluecolors <- brewer.pal(7,"Blues")
+greencolors <- brewer.pal(7,"Greens")
+orangecolors <- brewer.pal(7,"Oranges")
+redcolors <- brewer.pal(7,"Reds")
+purplecolors <- brewer.pal(7,"Purples")
+divcolors<-brewer.pal(9,"RdYlBu")
+qualcolors<-brewer.pal(7,"Set3")
+
+##### 0.4 Define functions for plot #####
+hline <- function(y = 0, color = "#CCCCCC") {
+    list(
+        type = "line",
+        x0 = 0,
+        x1 = 1,
+        xref = "paper",
+        y0 = y,
+        y1 = y,
+        line = list(color = color)
+    )
+}
+
+vline <- function(x = 0, color = "#CCCCCC") {
+    list(
+        type = "line",
+        x0 = x,
+        x1 = x,
+        y0 = 0,
+        y1 = 1,
+        yref = "paper",
+        line = list(color = color)
+    )
+}
+```
+
+
+```{r}
+dta<-dta%>%
+    mutate(college = institution_name)
+```
+
+```{r plot_rate_arrest_rank, results='asis'}
+
+        dtafig<-dta%>%
+            
+            filter( is.na(institution_size)==FALSE)%>%
+            group_by(institution_name)%>%
+            mutate(yearlatest=max(year))%>%
+            ungroup()%>%
+            
+            filter(year==yearlatest)
+        
+        dtafig%>%
+            plot_ly(
+                y = ~college,
+                type="bar", 
+                x = ~total_arrests, 
+                line = list(color = greencolors[3]), 
+                marker = list(color = greencolors[3]),
+                hovertemplate = paste0(
+                    dtafig$college,       
+                    "<br>Number of any arrests (per 1000): ", dtafig$total_arrests))%>%   
+            layout(
+                title = "", 
+                xaxis = list(title = "<br>Number (per 1000)",  
+                             #range=c(0, 100), 
+                             showgrid = FALSE, showticklabels = TRUE),
+                yaxis = list(title = "",
+                             tickfont = list(size=9),
+                             categoryorder = "total descending"),
+                showlegend = FALSE
+            )
+```
+
+```{r plot_rate_arrest, results='asis'}
+        
+        dtafig<-dta
+        
+        dtafig%>%
+            plot_ly(
+                x = ~year, y = ~total_arrests,
+                type="scatter", mode = 'lines+markers', 
+                color = ~college,
+                hovertemplate = paste0(
+                    dtafig$college,       
+                    "<br>Year: ", dtafig$year, 
+                    "<br>Number of any arrests (per 1000): ", dtafig$total_arrests))%>%
+            layout(
+                title = "", showlegend = FALSE, 
+                shapes = list(vline(2021)),
+                yaxis = list(title = "<br>Number (per 1000)",  
+                             #range=c(0, 100), 
+                             showgrid = FALSE, 
+                             showticklabels = TRUE),
+                xaxis = list(title = "Year", showgrid = FALSE , range=c(2016, 2024))
+            )
+```
+
+```{r plot_rate_criminal_rank, results='asis'}
+        
+        dtafig<-dta%>%
+            
+            filter( is.na(institution_size)==FALSE)%>%
+            group_by(institution_name)%>%
+            mutate(yearlatest=max(year))%>%
+            ungroup()%>%
+            
+            filter(year==yearlatest)
+        
+        dtafig%>%
+            plot_ly(
+                y = ~college,
+                type="bar", 
+                x = ~total_criminal, 
+                line = list(color = greencolors[3]), 
+                marker = list(color = greencolors[3]),
+                hovertemplate = paste0(
+                    dtafig$college,       
+                    "<br>Number of any criminal (per 1000): ", dtafig$total_criminal))%>%   
+            layout(
+                title = "", 
+                xaxis = list(title = "<br>Number (per 1000)",  
+                             #range=c(0, 100), 
+                             showgrid = FALSE, showticklabels = TRUE),
+                yaxis = list(title = "",
+                             tickfont = list(size=9),
+                             categoryorder = "total descending"),
+                showlegend = FALSE
+            )
+```
+
+```{r plot_rate_criminal, results='asis'}
+        
+        dtafig<-dta
+        
+        dtafig%>%
+            plot_ly(
+                x = ~year, y = ~total_criminal,
+                type="scatter", mode = 'lines+markers', 
+                color = ~college,
+                hovertemplate = paste0(
+                    dtafig$college,       
+                    "<br>Year: ", dtafig$year, 
+                    "<br>Number of any criminal (per 1000): ", dtafig$total_criminal))%>%
+            layout(
+                title = "", showlegend = FALSE, 
+                shapes = list(vline(2021)),
+                yaxis = list(title = "<br>Number (per 1000)",  
+                             #range=c(0, 100), 
+                             showgrid = FALSE, 
+                             showticklabels = TRUE),
+                xaxis = list(title = "Year", showgrid = FALSE , range=c(2016, 2024))
+            )
+```
+
+```{r plot_rate_vawa_rank, results='asis'}
+        
+        dtafig<-dta%>%
+            
+            filter( is.na(institution_size)==FALSE)%>%
+            group_by(institution_name)%>%
+            mutate(yearlatest=max(year))%>%
+            ungroup()%>%
+            
+            filter(year==yearlatest)
+        
+        dtafig%>%
+            plot_ly(
+                y = ~college,
+                type="bar", 
+                x = ~total_vawa, 
+                line = list(color = greencolors[3]), 
+                marker = list(color = greencolors[3]),
+                hovertemplate = paste0(
+                    dtafig$college,       
+                    "<br>Number of any vawa (per 1000): ", dtafig$total_vawa))%>%   
+            layout(
+                title = "", 
+                xaxis = list(title = "<br>Number (per 1000)",  
+                             #range=c(0, 100), 
+                             showgrid = FALSE, showticklabels = TRUE),
+                yaxis = list(title = "",
+                             tickfont = list(size=9),
+                             categoryorder = "total descending"),
+                showlegend = FALSE
+            )
+```
+
+```{r plot_rate_vawa, results='asis'}
+        
+        dtafig<-dta
+        
+        dtafig%>%
+            plot_ly(
+                x = ~year, y = ~total_vawa,
+                type="scatter", mode = 'lines+markers', 
+                color = ~college,
+                hovertemplate = paste0(
+                    dtafig$college,       
+                    "<br>Year: ", dtafig$year, 
+                    "<br>Number of any vawa (per 1000): ", dtafig$total_vawa))%>%
+            layout(
+                title = "", showlegend = FALSE, 
+                shapes = list(vline(2021)),
+                yaxis = list(title = "<br>Number (per 1000)",  
+                             #range=c(0, 100), 
+                             showgrid = FALSE, 
+                             showticklabels = TRUE),
+                xaxis = list(title = "Year", showgrid = FALSE , range=c(2016, 2024))
+            )

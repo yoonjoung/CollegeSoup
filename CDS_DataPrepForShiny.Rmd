@@ -38,6 +38,12 @@ dta <- read_excel("~/Dropbox/0Kids/0iSquareed_CollegeSoup/CommonDataSet.xlsx",
 ```{r genvar_group, results='hide'}
 dta <- dta%>%
     
+    # fill OPE ID volumns 
+    group_by(college)%>%
+    fill(opeid, .direction = "down")%>%
+    fill(campus_id, .direction = "down")%>%
+    ungroup()%>%
+
     mutate(
         
         # simplify names #### 
@@ -432,10 +438,13 @@ dta_opecss <- read_excel('~/Dropbox/0Kids/0iSquareed_CollegeSoup/OPE_CSS/ope_css
 ```
 
 ```{r merge_with_ope_css, results='hide'}
-dta<-left_join(dta, dta_opecss, 
-               by=c("opeid", "campus_id", "year"))
+dim(dta)
+dim(dta_opecss)
 
-colnames(dta)
+dta<-left_join(dta, dta_opecss, 
+                   by=c("opeid", "campus_id", "year"))
+
+dim(dta)
 ```
 
 # Export
@@ -447,7 +456,7 @@ dta<-dta%>%
     filter(college!="Harvard" &
               college!="Amherst" & 
               college!="Princeton" & 
-              college!="Johns Hopkins" & 
+              
               college!="Vanderbilt" & 
               college!="Hamilton" &
               college!="Davidson" &
