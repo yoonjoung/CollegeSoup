@@ -25,14 +25,16 @@ suppressWarnings(suppressMessages(library(stringr)))
 suppressWarnings(suppressMessages(library(RColorBrewer))) 
 ```
 
+# Import
 ```{r import, results='hide'}
-dta <- read_excel("~/Dropbox/0Kids/CDS/CommonDataSet.xlsx", 
-                  range = "A3:CY1000",
+dta <- read_excel("~/Dropbox/0Kids/0iSquareed_CollegeSoup/CommonDataSet.xlsx", 
+                  range = "A3:DZ1000",
                   col_names = TRUE)%>%
     select(-starts_with("..."))%>%
     filter(is.na(college)==FALSE)
 ```
 
+# Gen var: group
 ```{r genvar_group, results='hide'}
 dta <- dta%>%
     
@@ -80,27 +82,45 @@ dta <- dta%>%
         # public ####
         public = 0, 
         public = replace(public, 
-                        exp_tuitioninstate != exp_tuitionoutstate,
-                        1),       
+                         exp_tuitioninstate != exp_tuitionoutstate,
+                         1),       
        
         # instate ####
         instate = 0, 
         instate = replace(instate, 
-                        college=="UM_CollegePark" | 
-                            college=="UMBC" ,
-                        1),        
+                          college=="UM_CollegePark" | 
+                              college=="UMBC" ,
+                          1),      
+
         # outofstate ####
         outofstate = 0, 
         outofstate = replace(outofstate, 
-                        public==1 & instate==0,
-                        1) 
+                             public==1 & instate==0,
+                             1),
+       # west coast ####
+        west = 0, 
+        west = replace(west, 
+                       grepl("CSU", college) | 
+                            grepl("UC", college) |
+                            grepl("CalPoly", college) |
+                            grepl("Pomona", college) |
+                            grepl("Reed", college) |
+                            grepl("Oregon", college) |
+                            grepl("UWash", college) | 
+                            grepl("SanDiego", college),
+                        1),
+        west = replace(west, 
+                       grepl("UCO_", college) ,
+                       0) 
+       
     )%>%
     
     group_by(college) %>%
     mutate(
         public = max(public, na.rm = TRUE), 
         instate = max(instate, na.rm = TRUE),
-        outofstate = max(outofstate, na.rm = TRUE)
+        outofstate = max(outofstate, na.rm = TRUE),
+        west = max(west, na.rm = TRUE)
     )%>%
     ungroup()
 
@@ -110,6 +130,7 @@ table(temp$college)
 
 ```
 
+# Gen var: indicators
 ```{r genvar1, results='hide'}      
 colnames(dta)<-tolower(colnames(dta))
 
@@ -145,7 +166,11 @@ dta<-dta%>%
         pc_admit_male = numadmit_male / numapp_male, 
         pc_admit_female = numadmit_female / numapp_female, 
         pc_admit_total = numadmit_total / numapp_total, 
+        pc_admit_instate = numadmit_instate / numapp_instate, 
+        pc_admit_oos = numadmit_oos / numapp_oos, 
+        pc_admit_intnl = numadmit_intnl / numapp_intnl, 
         pc_admit_ed = numadmit_ed / numapp_ed, 
+        pc_admit_ea = numadmit_ea / numapp_ea, 
         
         pc_yield_male = numenroll_male / numadmit_male, 
         pc_yield_female = numenroll_female / numadmit_female, 
@@ -157,11 +182,24 @@ dta<-dta%>%
         earlydecision = 0, 
         earlydecision = replace(earlydecision, ed=="Yes", 1), 
         
-        pct_gpa4 = replace(pct_gpa4, year<=2018, NA)
+        pct_gpa4 = replace(pct_gpa4, year<=2018, NA) 
         #cut off changed in 2019 from 3.75 to 4.0
-
+        
     )%>%
 
+    rename_at(.vars = vars(starts_with("class_")), 
+              .funs = funs(sub("class_", "pc_class_", .)))%>%
+    
+    rename(class_total = pc_class_total)%>%
+    
+    mutate_at(vars(starts_with("pc_class_")), 
+              funs(. / class_total))%>%   
+    
+    mutate(
+        pc_class20 = pc_class_2_9 + pc_class_10_19 , 
+        pc_class30 = pc_class_2_9 + pc_class_10_19 + pc_class_20_29 , 
+    )%>%
+    
     mutate_at(vars(starts_with("pc_")), 
               funs(round((.*100), 0)))%>%    
     
@@ -184,6 +222,7 @@ dta<-dta%>%
               ~replace(., stsimportant==1, NA))
 ```
 
+# Gen var: indicators - admission criteria
 ```{r genvar2, results='hide'} 
 
 temp<-dta%>%
@@ -241,6 +280,8 @@ temp<-dta%>%select(college, year, starts_with("numtrans"))
 View(temp)
 str(temp)
 ```
+
+# Gen var: indicators - by college + finance
 
 ```{r genvar3, results='hide'} 
 dta<-dta%>%
@@ -333,6 +374,7 @@ dta<-dta%>%
 dim(dta)
 ```
 
+# Gen var: group - more
 ```{r genvar_group_more, results='hide'}
 dta <- dta%>%
     group_by(college)%>%
@@ -376,10 +418,27 @@ dta <- dta%>%
         groupwomen = ifelse(women==1, "women", ""),
         groupopen = ifelse(open==1, "open", ""), 
         grouppublic = ifelse(public==1, "public", ""), 
-        group=paste(groupall, groupsize, groupadmit, groupwomen, groupopen, grouppublic) 
+        groupwest = ifelse(west==1, "west", ""), 
+        group=paste(groupall, groupsize, groupadmit, groupwomen, groupopen, grouppublic, groupwest) 
     )
 ```
 
+# Merge with OPE CSS data
+```{r import_ope_css, results='hide'}
+dta_opecss <- read_excel('~/Dropbox/0Kids/0iSquareed_CollegeSoup/OPE_CSS/ope_css_merge_with_cds.xlsx', 
+                         col_names = TRUE)%>%
+    filter(is.na(opeid)==FALSE)
+
+```
+
+```{r merge_with_ope_css, results='hide'}
+dta<-left_join(dta, dta_opecss, 
+               by=c("opeid", "campus_id", "year"))
+
+colnames(dta)
+```
+
+# Export
 ```{r dta_all_vs_dta, results='hide'}
 dtaall_latest<-dta%>%
     filter(year==yearlatest)
@@ -388,6 +447,7 @@ dta<-dta%>%
     filter(college!="Harvard" &
               college!="Amherst" & 
               college!="Princeton" & 
+              college!="Johns Hopkins" & 
               college!="Vanderbilt" & 
               college!="Hamilton" &
               college!="Davidson" &
@@ -420,6 +480,7 @@ temp<-dta%>%
 View(temp)
 ```
 
+# Functions for figures
 ```{r function_hline}
 hline <- function(y = 0, color = "#f0f0f0") {
   list(
@@ -459,7 +520,7 @@ divcolors<-brewer.pal(7,"RdYlBu")
 qualcolors<-brewer.pal(7,"Set3")
 ```
 
-k## 1. Admission
+## 1. Admission
 ### 1.1 What are trends of the overall admission rate? 
 ```{r plot_admit_all}
 dta%>%

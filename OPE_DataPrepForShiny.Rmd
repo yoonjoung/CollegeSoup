@@ -1,0 +1,330 @@
+---
+output:
+  html_document:
+    toc: true
+    toc_depth: 5
+    toc_float: true
+---
+
+```{r intro, echo=FALSE, results="hide"}
+knitr::opts_chunk$set(echo=FALSE, 
+                      message=FALSE, 
+                      comment = "", 
+                      warning=FALSE, 
+                      results="asis") 
+
+date<-as.Date(Sys.time(	), format='%d%b%Y')
+
+suppressWarnings(suppressMessages(library(dplyr)))
+suppressWarnings(suppressMessages(library(plyr)))
+suppressWarnings(suppressMessages(library(tidyr)))
+suppressWarnings(suppressMessages(library(tidyverse)))
+suppressWarnings(suppressMessages(library(janitor)))
+
+suppressWarnings(suppressMessages(library(readxl)))
+suppressWarnings(suppressMessages(library(plotly)))
+suppressWarnings(suppressMessages(library(writexl)))
+suppressWarnings(suppressMessages(library(stringr)))
+suppressWarnings(suppressMessages(library(RColorBrewer))) 
+```
+
+# Import
+```{r directory}
+mydir<-c("~/Dropbox/0Kids/0iSquareed_CollegeSoup/")
+
+opecss<-c(paste0(mydir, "OPE_CSS/Custom/"))
+#dir(opecss)
+
+filenames <- list.files(path = opecss, pattern = ".csv$")
+```
+
+```{r import_arrests}
+locations<-c("On_campus", 
+             "On_campus_Student_Housing_Facilities", 
+             "Noncampus",
+             "Public_Property")
+
+dta<-read_csv(paste0(opecss,"Arrests_", locations[1], ".csv")) 
+    
+    dim(dta)
+    dta$location <- locations[1]
+    dim(dta)
+    
+for(i in 2:length(locations)){
+    dtatemp<-read_csv(paste0(opecss,"Arrests_", locations[i], ".csv")) 
+    
+    print(dim(dtatemp[i]))
+    dtatemp$location <- locations[i]
+    dta<-rbind(dta, dtatemp)
+    dim(dta)
+    #print(str(dta[i]))
+}
+    
+colnames(dta)<-tolower(colnames(dta))
+dta<-clean_names(dta)
+
+dta_arrests<-dta
+```
+
+```{r import_criminal}
+locations<-c("On_campus", 
+             "On_campus_Student_Housing_Facilities", 
+             "Noncampus",
+             "Public_Property")
+
+dta<-read_csv(paste0(opecss,"Criminal_Offenses_", locations[1], ".csv")) 
+    
+    dim(dta)
+    dta$location <- locations[1]
+    dim(dta)
+    
+for(i in 2:length(locations)){
+    dtatemp<-read_csv(paste0(opecss,"Criminal_Offenses_", locations[i], ".csv")) 
+    
+    print(dim(dtatemp[i]))
+    dtatemp$location <- locations[i]
+    dta<-rbind(dta, dtatemp)
+    dim(dta)
+    #print(str(dta[i]))
+}
+    
+colnames(dta)<-tolower(colnames(dta))
+dta<-clean_names(dta)
+
+dta_criminal<-dta
+```
+
+```{r import_disciplinary}
+# locations<-c("On_campus", 
+#              "On_campus_Student_Housing_Facilities", 
+#              "Noncampus",
+#              "Public_Property")
+locations<-c("On_campus",
+             "Student_Housing_Facilities",
+             "Noncampus",
+             "Public_Property")
+
+dta<-read_csv(paste0(opecss,"Disciplinary_Actions_", locations[1], ".csv")) 
+    
+    dim(dta)
+    dta$location <- locations[1]
+    dim(dta)
+    
+for(i in 2:length(locations)){
+    dtatemp<-read_csv(paste0(opecss,"Disciplinary_Actions_", locations[i], ".csv")) 
+    
+    print(dim(dtatemp[i]))
+    dtatemp$location <- locations[i]
+    dta<-rbind(dta, dtatemp)
+    dim(dta)
+    #print(str(dta[i]))
+}
+    
+colnames(dta)<-tolower(colnames(dta))
+dta<-clean_names(dta)
+
+dta_disciplinary<-dta
+```
+
+```{r import_hate}
+locations<-c("On_campus", 
+             "On_campus_Student_Housing_Facilities", 
+             "Noncampus",
+             "Public_Property")
+
+dta<-read_csv(paste0(opecss,"Hate_Crimes_", locations[1], ".csv")) 
+    
+    dim(dta)
+    dta$location <- locations[1]
+    dim(dta)
+    
+for(i in 2:length(locations)){
+    dtatemp<-read_csv(paste0(opecss,"Hate_Crimes_", locations[i], ".csv")) 
+    
+    print(dim(dtatemp[i]))
+    dtatemp$location <- locations[i]
+    dta<-rbind(dta, dtatemp)
+    dim(dta)
+    #print(str(dta[i]))
+}
+    
+colnames(dta)<-tolower(colnames(dta))
+dta<-clean_names(dta)
+
+dta_hate<-dta
+```
+
+```{r import_vawa}
+locations<-c("On_campus", 
+             "On_campus_Student_Housing_Facilities", 
+             "Noncampus",
+             "Public_Property")
+
+dta<-read_csv(paste0(opecss,"VAWA_Offenses_", locations[1], ".csv")) 
+    
+    dim(dta)
+    dta$location <- locations[1]
+    dim(dta)
+    
+for(i in 2:length(locations)){
+    dtatemp<-read_csv(paste0(opecss,"VAWA_Offenses_", locations[i], ".csv")) 
+    
+    print(dim(dtatemp[i]))
+    dtatemp$location <- locations[i]
+    dta<-rbind(dta, dtatemp)
+    dim(dta)
+    #print(str(dta[i]))
+}
+    
+colnames(dta)<-tolower(colnames(dta))
+dta<-clean_names(dta)
+
+dta_vawa<-dta
+```
+
+```{r check_imported_data}
+dim(dta_arrests)
+dim(dta_criminal)
+dim(dta_disciplinary)
+dim(dta_hate)
+dim(dta_vawa)
+
+table(dta_arrests$location)
+table(dta_criminal$location)
+#table(dta_disciplinary$location)
+#table(dta_hate$location)
+table(dta_vawa$location)
+
+colnames(dta_arrests)
+colnames(dta_criminal)
+#colnames(dta_disciplinary)
+#colnames(dta_hate)
+colnames(dta_vawa)
+
+```        
+
+# Gen var: group
+```{r genvar_arrests, results='hide'}
+temp<-dta_arrests
+
+dta <- temp%>%
+    select(institution_name, opeid, campus_name, campus_id, survey_year, 
+             institution_size, colnames(temp[9: ncol(temp)-1]))%>%
+    group_by(institution_name, opeid, campus_name, campus_id, survey_year, 
+             institution_size)%>%
+    summarise_all(list(sum), na.rm = TRUE)
+
+dta$total_arrests <- rowSums(dta[ , colnames(dta[ , 7:ncol(dta)])])
+
+dta_arrests <- dta
+```    
+
+```{r genvar_criminal, results='hide'}
+# temp<-dta_criminal%>%
+#     filter(institution_name=="Johns Hopkins University" &
+#                 campus_name=="JHU  HOMEWOOD  CAMPUS- BALTIMORE- MARYLAND")
+temp<-dta_criminal
+
+dta <- temp%>%
+    select(institution_name, opeid, campus_name, campus_id, survey_year, 
+             institution_size, colnames(temp[9: ncol(temp)-1]))%>%
+    group_by(institution_name, opeid, campus_name, campus_id, survey_year, 
+             institution_size)%>%
+    summarise_all(list(sum), na.rm = TRUE)
+
+dta$total_criminal <- rowSums(dta[ , colnames(dta[ , 7:ncol(dta)])])
+
+dta_criminal <- dta
+
+```    
+
+```{r genvar_vawa, results='hide'}
+temp<-dta_vawa
+
+dta <- temp%>%
+    select(institution_name, opeid, campus_name, campus_id, survey_year, 
+             institution_size, colnames(temp[9: ncol(temp)-1]))%>%
+    group_by(institution_name, opeid, campus_name, campus_id, survey_year, 
+             institution_size)%>%
+    summarise_all(list(sum), na.rm = TRUE)
+
+dta$total_vawa <- rowSums(dta[ , colnames(dta[ , 7:ncol(dta)])])
+
+dta_vawa <- dta
+```    
+
+# Export
+
+```{r merge}
+dim(dta_arrests)
+dim(dta_criminal)
+dim(dta_vawa)
+
+dta <- left_join(dta_arrests, dta_vawa, by=colnames(dta[ , 1:6]))
+dta <- left_join(dta, dta_criminal, by=colnames(dta[ , 1:6]))
+dim(dta)
+
+colnames(dta)
+```
+
+```{r genvar_more}
+#convert to rate 
+dta<-dta%>%
+    mutate_at(vars(colnames(dta[ , 7:ncol(dta)]) ), 
+              funs( round(1000* . / institution_size, 1) ) )
+
+```    
+              
+```{r export}
+write_xlsx(dta, 
+           'OPE_CSS/ope_css.xlsx', 
+           col_names = TRUE)
+```
+
+# Prep for merge
+
+```{r export_institution_campus_name}
+dta_opeid<-dta%>%
+    filter(survey_year==2021)%>%
+    select(institution_name, campus_name, opeid, campus_id)%>%
+    arrange(institution_name, campus_name)
+
+dim(dta_opeid)
+
+write_xlsx(dta_opeid, 
+           'OPE_CSS/opeid.xlsx', 
+           col_names = TRUE)
+```
+
+```{r filter_dta_to_merge, results='hide'}
+# colleges in the analysis 
+dtatomerge <- read_excel("CommonDataSet.xlsx", 
+                  range = "A3:E1000",
+                  col_names = TRUE)%>%
+    select(college, year, opeid, campus_id)%>%
+    rename(survey_year = year)%>%
+    filter(is.na(college)==FALSE)%>%
+    
+    group_by(college)%>%
+    fill(opeid, .direction = "down")%>%
+    fill(campus_id, .direction = "down")%>%
+    ungroup()
+
+```
+
+```{r merge_prep}
+colnames(dtatomerge)
+colnames(dta)
+dim(dtatomerge)
+dim(dta)
+
+dta <- left_join(dtatomerge, dta, 
+                     by=c("opeid", "campus_id", "survey_year"))%>%
+    rename(year = survey_year)%>%
+    select(-college)
+
+write_xlsx(dta, 
+           'OPE_CSS/ope_css_merge_with_cds.xlsx', 
+           col_names = TRUE)
+
+```
