@@ -423,9 +423,11 @@ dta <- dta%>%
                                   ""))),
         groupwomen = ifelse(women==1, "women", ""),
         groupopen = ifelse(open==1, "open", ""), 
+        groupprivate = ifelse(public==0, "private", ""), 
         grouppublic = ifelse(public==1, "public", ""), 
         groupwest = ifelse(west==1, "west", ""), 
-        group=paste(groupall, groupsize, groupadmit, groupwomen, groupopen, grouppublic, groupwest) 
+        group=paste(groupall, groupsize, groupadmit, 
+                    groupwomen, groupopen, groupprivate, grouppublic, groupwest) 
     )
 ```
 
