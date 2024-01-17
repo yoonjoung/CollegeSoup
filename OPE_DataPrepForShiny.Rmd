@@ -263,7 +263,7 @@ dta_arrests <- dta
 
 ```{r import_genvar_criminal_by_location}
 locations<-c("On_campus", 
-             #"On_campus_Student_Housing_Facilities", 
+             "On_campus_Student_Housing_Facilities", 
              "Noncampus",
              "Public_Property")
 
@@ -290,7 +290,7 @@ dta_criminal1<-dta%>%
     rename_at(.vars = vars(starts_with("total_criminal")), 
               .funs = funs(sub("total_criminal", "total_criminal_oncampus", .)))
 
-# NON campus #####
+# ON campus, housing #####
 dta<-read_csv(paste0(opecss,"Criminal_Offenses_", locations[2], ".csv")) 
 colnames(dta)<-tolower(colnames(dta))
 dta<-clean_names(dta)
@@ -311,9 +311,9 @@ dta<-dta%>%
 
 dta_criminal2<-dta%>%
     rename_at(.vars = vars(starts_with("total_criminal")), 
-              .funs = funs(sub("total_criminal", "total_criminal_noncampus", .)))
+              .funs = funs(sub("total_criminal", "total_criminal_oncampus_housing", .)))
 
-# PUBLIC property campus #####
+# NON campus #####
 dta<-read_csv(paste0(opecss,"Criminal_Offenses_", locations[3], ".csv")) 
 colnames(dta)<-tolower(colnames(dta))
 dta<-clean_names(dta)
@@ -334,17 +334,43 @@ dta<-dta%>%
 
 dta_criminal3<-dta%>%
     rename_at(.vars = vars(starts_with("total_criminal")), 
+              .funs = funs(sub("total_criminal", "total_criminal_noncampus", .)))
+
+# PUBLIC property campus #####
+dta<-read_csv(paste0(opecss,"Criminal_Offenses_", locations[4], ".csv")) 
+colnames(dta)<-tolower(colnames(dta))
+dta<-clean_names(dta)
+
+dta<-dta%>%
+    select(institution_name, opeid, campus_name, campus_id, survey_year, 
+           colnames(dta[8: ncol(dta)]))
+colnames(dta[ , 6:ncol(dta)])
+dta$total_criminal <- rowSums(dta[ , colnames(dta[ , 6:ncol(dta)])], 
+                              na.rm = TRUE)
+colnames(dta[ , 8:13])
+dta$total_criminal_sex <- rowSums(dta[ , colnames(dta[ , 8:13])], 
+                                  na.rm = TRUE)
+
+dta<-dta%>%
+    select(institution_name, opeid, campus_name, campus_id, survey_year,
+           starts_with("total_criminal"))
+
+dta_criminal4<-dta%>%
+    rename_at(.vars = vars(starts_with("total_criminal")), 
               .funs = funs(sub("total_criminal", "total_criminal_public", .)))
 
 # merge three locations #####
 dim(dta_criminal1)
 dim(dta_criminal2)
 dim(dta_criminal3)
+dim(dta_criminal4)
 colnames(dta[ , 1:5])
 
 dta_criminal_by_location<-left_join(dta_criminal1, dta_criminal2,
                                     by = c(colnames(dta[ , 1:5]))) 
 dta_criminal_by_location<-left_join(dta_criminal_by_location, dta_criminal3,
+                                    by = c(colnames(dta[ , 1:5]))) 
+dta_criminal_by_location<-left_join(dta_criminal_by_location, dta_criminal4,
                                     by = c(colnames(dta[ , 1:5]))) 
 colnames(dta_criminal_by_location)
 
@@ -357,6 +383,16 @@ dim(dta_criminal_by_location)
 dta_criminal<-left_join(dta_criminal, dta_criminal_by_location,
                         by = c(colnames(dta[ , 1:5])))
 dim(dta_criminal)
+colnames(dta_criminal)
+
+# merge with overall criminal data #####
+dta_criminal<-dta_criminal%>%
+    mutate(
+        total_criminal_oncampus_nonhousing = total_criminal_oncampus -
+            total_criminal_oncampus_housing, 
+        total_criminal_oncampus_nonhousing_sex = total_criminal_oncampus_sex -
+            total_criminal_oncampus_housing_sex
+    )
 ```
 
 
@@ -609,12 +645,19 @@ dta<-dta%>%
             plot_ly(
                 y = ~college,
                 type="bar", 
-                x = ~total_criminal_oncampus, 
+                x = ~total_criminal_oncampus_housing, 
                 line = list(color = greencolors[3]), 
                 marker = list(color = greencolors[3]),
                 hovertemplate = paste0(
                     dtafig$college,       
-                    "<br>Number of any criminal ON campus (per 1000): ", dtafig$total_criminal))%>%   
+                    "<br>Number of any criminal ON campus housing (per 1000): ", dtafig$total_criminal))%>%   
+            add_trace(
+                x = ~total_criminal_oncampus_nonhousing, 
+                line = list(color = greencolors[4]), 
+                marker = list(color = greencolors[4]),
+                hovertemplate = paste0(
+                    dtafig$college,       
+                    "<br>Number of any criminal ON campus non-housing (per 1000): ", dtafig$total_criminal))%>% 
             add_trace(
                 x = ~total_criminal_noncampus, 
                 line = list(color = greencolors[5]), 
