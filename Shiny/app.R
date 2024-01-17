@@ -47,6 +47,7 @@ collegegrouplist<-as.vector(c("All",
                               "Target (Acceptance rate 20% - 50%)",
                               "Safety (Acceptance rate 50% and more)", 
                               "Open curriculum colleges",
+                              "Private universities",
                               "Public universities",
                               "Women's colleges",
                               "West coast colleges"))
@@ -97,6 +98,8 @@ temp<-dta%>%filter(open==1)
 collegelist_open<-as.vector(sort(unique(temp$college)))
 temp<-dta%>%filter(public==1)
 collegelist_public<-as.vector(sort(unique(temp$college)))
+temp<-dta%>%filter(public==0)
+collegelist_private<-as.vector(sort(unique(temp$college)))
 temp<-dta%>%filter(west==1)
 collegelist_west<-as.vector(sort(unique(temp$college)))
 
