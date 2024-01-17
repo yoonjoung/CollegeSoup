@@ -456,7 +456,7 @@ dta<-dta%>%
     filter(college!="Harvard" &
               college!="Amherst" & 
               college!="Princeton" & 
-              
+              college!="Johns Hopkins" & 
               college!="Vanderbilt" & 
               college!="Hamilton" &
               college!="Davidson" &
