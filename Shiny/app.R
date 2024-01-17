@@ -111,7 +111,7 @@ orangecolors <- brewer.pal(7,"Oranges")
 redcolors <- brewer.pal(7,"Reds")
 purplecolors <- brewer.pal(7,"Purples")
 divcolors<-brewer.pal(9,"RdYlBu")
-qualcolors<-brewer.pal(7,"Set3")
+qualcolors<-brewer.pal(9,"Set3")
 
 ##### 0.4 Define functions for plot #####
 hline <- function(y = 0, color = "#CCCCCC") {
@@ -570,6 +570,13 @@ ui<-fluidPage(
                                    "Domestic violence; Dating violence; and Stalking."), 
                                  p(strong("- Arrests for law violation "), "includes: ", 
                                    "Weapons carrying, possessing, etc.; Drug abuse violations; and Liquor law violations."),  
+                                 h6(""),
+                                 p(strong("For comparison purposes, statistics for JHU Homewood Campus in 2021 are the following:")), 
+                                 p("- Number of criminal offences per 1000: 1.5"), 
+                                 p("- Number of VAWA offences per 1000: 0.75"), 
+                                 p("- Number of arrests per 1000: 0"), 
+                                 p("- Number of criminal offences, VAWA offences, or arrets per 1000: 2.25"), 
+                                 
                                  column(4,
                                         h5("Criminal offences, VAWA offences, or arrets (per 1000 students), latest year"),
                                         plotlyOutput("plot_rate_total_rank",
@@ -578,6 +585,11 @@ ui<-fluidPage(
                                         h6("Criminal offences", style = "color:#99000d"),  
                                         h6("VAWA offences", style = "color:#ef3b2c"),  
                                         h6("Arrests", style = "color:#fc9272"),  
+                                 ),
+                                 column(4,
+                                        h5("Criminal offences by category (per 1000 students), latest year"),
+                                        plotlyOutput("plot_rate_total_criminal_rank",
+                                                     width = 400, height = 600)
                                  ),
                                  column(4,
                                         h5("Criminal offences, VAWA offences, or arrets in total (per 1000 students), trends"),
@@ -602,7 +614,7 @@ ui<-fluidPage(
                                         h5("Arrests (per 1000 students), latest year"),    
                                         plotlyOutput("plot_rate_arrest_rank",
                                                      width = 400, height = 400)
-                                 ),
+                                 )
                              ),
                              # safety - trends ####
                              fluidRow(
@@ -635,7 +647,7 @@ ui<-fluidPage(
                                         h5("Percent of freshmen who live in university-affiliated housing(%), trends"),    
                                         plotlyOutput("plot_pct_housing_freshmen",
                                                      width = 400, height = 400)
-                                 ),
+                                 )
                              ),
                              fluidRow(
                                  column(4,
@@ -662,7 +674,7 @@ ui<-fluidPage(
                                         h5("Percent of undergraduate who are in fraternities (%), trends"),  
                                         plotlyOutput("plot_pct_frat",
                                                      width = 400, height = 400)
-                                 ),
+                                 )
                              ),
                              fluidRow(
                                  column(4,
@@ -749,7 +761,7 @@ ui<-fluidPage(
                                         h5("Retention rate over time"),    
                                         plotlyOutput("plot_graduation_trend",
                                                      width = 400, height = 400)
-                                 ), 
+                                 ) 
                              )
                     ),
                     # TAB 7: In-depth insight by college####
@@ -926,6 +938,40 @@ ui<-fluidPage(
                                         plotlyOutput("cplot_numtransenroll_total",
                                                      width = 400, height = 400)
                                  )
+                             ),
+                             # Safety ####
+                             h4("How about campus safety?", style = "color:red"),
+                             p(strong("- Criminal offenses "), "includes: ",
+                               "Murder/Non-negligent manslaughter; Negligent manslaughter; ",
+                               "Rape; Fondling; Incest; Statutory rape; ",
+                               "Robbery; Aggravated assault; Burglary; ",
+                               "Motor vehicle theft; and Arson."),  
+                             p(strong("- Violence against women act (VAWA) offences "), "includes: ",
+                               "Domestic violence; Dating violence; and Stalking."), 
+                             p(strong("- Arrests for law violation "), "includes: ", 
+                               "Weapons carrying, possessing, etc.; Drug abuse violations; and Liquor law violations."),  
+                             h6(""),
+                             p(strong("For comparison purposes, statistics for JHU Homewood Campus in 2021 are the following:")), 
+                             p("- Number of criminal offences per 1000: 1.5"), 
+                             p("- Number of VAWA offences per 1000: 0.75"), 
+                             p("- Number of arrests per 1000: 0"), 
+                             p("- Number of criminal offences, VAWA offences, or arrets per 1000: 2.25"), 
+                             fluidRow(
+                                 column(4,
+                                        h5("The total number of criminal offences, VAWA offences, or arrets by year (per 1000 students)"),
+                                        plotlyOutput("cplot_rate_total_trend",
+                                                     width = 400, height = 600),
+                                        h6(strong("LEGEND")), 
+                                        h6("Criminal offences", style = "color:#99000d"),  
+                                        h6("VAWA offences", style = "color:#ef3b2c"),  
+                                        h6("Arrests", style = "color:#fc9272"),  
+                                 ),
+                                 column(4,
+                                        h5("The number of criminal offences by category and year (per 1000 students)"),
+                                        plotlyOutput("cplot_rate_total_criminal_trend",
+                                                     width = 400, height = 600),
+                                        h6("Hover over to see type of criminal offences")
+                                 ) 
                              )
                     ),         
                     # Annex ####
@@ -2445,6 +2491,125 @@ server<-function(input, output, session) {
             ) 
     })            
 
+    output$plot_rate_total_criminal_rank <- renderPlotly({
+        
+        dtafig<-dta%>%
+            filter(grepl(sub("\\'.*", "", 
+                             sub("\\s.*", "", 
+                                 tolower(input$collegegroup_tab5))),
+                         group))%>%
+            
+            filter( is.na(institution_size)==FALSE)%>%
+            group_by(college)%>%
+            mutate(yearlatest=max(year))%>%
+            ungroup()%>%
+            
+            filter(year==yearlatest)
+        
+        dtafig%>%
+            plot_ly(
+                y = ~college,
+                type="bar", 
+                x = ~rate_murder_non_negligent_manslaughter, 
+                hovertemplate = paste0(
+                    dtafig$college, 
+                    "<br>Year: ", dtafig$year, 
+                    "<br>Number of murder_non_negligent_manslaughter (per 1000): ", dtafig$rate_murder_non_negligent_manslaughter),
+                line = list(color = bluecolors[7]), marker = list(color = bluecolors[7]))%>%   
+            add_trace(
+                x = ~rate_negligent_manslaughter,
+                hovertemplate = ~paste(
+                    dtafig$college,
+                    "<br>Year: ", dtafig$year,
+                    "<br>Number of negligent_manslaughter (per 1000): ", dtafig$rate_negligent_manslaughter),
+                line = list(color = bluecolors[5]), marker = list(color = bluecolors[5]))%>%   
+            add_trace(
+                x = ~rate_sex_offenses_forcible,
+                hovertemplate = ~paste(
+                    dtafig$college,
+                    "<br>Year: ", dtafig$year,
+                    "<br>Number of sex_offenses_forcible (per 1000): ", dtafig$rate_sex_offenses_forcible),
+                line = list(color = orangecolors[7]), marker = list(color = orangecolors[7]))%>%   
+            add_trace(
+                x = ~rate_rape,
+                hovertemplate = ~paste(
+                    dtafig$college,
+                    "<br>Year: ", dtafig$year,
+                    "<br>Number of rape (per 1000): ", dtafig$rate_rape),
+                line = list(color = orangecolors[6]), marker = list(color = orangecolors[6]))%>%   
+            add_trace(
+                x = ~rate_fondling,
+                hovertemplate = ~paste(
+                    dtafig$college,
+                    "<br>Year: ", dtafig$year,
+                    "<br>Number of fondling (per 1000): ", dtafig$rate_fondling),
+                line = list(color = orangecolors[5]), marker = list(color = orangecolors[5]))%>%   
+            add_trace(
+                x = ~rate_sex_offenses_non_forcible,
+                hovertemplate = ~paste(
+                    dtafig$college,
+                    "<br>Year: ", dtafig$year,
+                    "<br>Number of sex_offenses_non_forcible (per 1000): ", dtafig$rate_sex_offenses_non_forcible),
+                line = list(color = orangecolors[4]), marker = list(color = orangecolors[4]))%>%   
+            add_trace(
+                x = ~rate_incest,
+                hovertemplate = ~paste(
+                    dtafig$college,
+                    "<br>Year: ", dtafig$year,
+                    "<br>Number of incest (per 1000): ", dtafig$rate_incest),
+                line = list(color = orangecolors[3]), marker = list(color = orangecolors[3]))%>%   
+            add_trace(
+                x = ~rate_statutory_rape,
+                hovertemplate = ~paste(
+                    dtafig$college,
+                    "<br>Year: ", dtafig$year,
+                    "<br>Number of statutory_rape (per 1000): ", dtafig$rate_statutory_rape),
+                line = list(color = orangecolors[2]), marker = list(color = orangecolors[2]))%>%   
+            add_trace(
+                x = ~rate_robbery,
+                hovertemplate = ~paste(
+                    dtafig$college,
+                    "<br>Year: ", dtafig$year,
+                    "<br>Number of robbery (per 1000): ", dtafig$rate_robbery),
+                line = list(color = qualcolors[9]), marker = list(color = qualcolors[9]))%>%
+            add_trace(
+                x = ~rate_aggravated_assault,
+                hovertemplate = ~paste(
+                    dtafig$college,
+                    "<br>Year: ", dtafig$year,
+                    "<br>Number of aggravated_assault (per 1000): ", dtafig$rate_aggravated_assault),
+                line = list(color = qualcolors[8]), marker = list(color = qualcolors[8]))%>%     
+            add_trace(
+                x = ~rate_burglary,
+                hovertemplate = ~paste(
+                    dtafig$college,
+                    "<br>Year: ", dtafig$year,
+                    "<br>Number of burglary (per 1000): ", dtafig$rate_burglary),
+                line = list(color = qualcolors[7]), marker = list(color = qualcolors[7]))%>%     
+            add_trace(
+                x = ~rate_motor_vehicle_theft,
+                hovertemplate = ~paste(
+                    dtafig$college,
+                    "<br>Year: ", dtafig$year,
+                    "<br>Number of motor_vehicle_theft (per 1000): ", dtafig$rate_motor_vehicle_theft),
+                line = list(color = qualcolors[6]), marker = list(color = qualcolors[6]))%>%     
+            add_trace(
+                x = ~rate_arson,
+                hovertemplate = ~paste(
+                    dtafig$college,
+                    "<br>Year: ", dtafig$year,
+                    "<br>Number of arson (per 1000): ", dtafig$rate_arson),
+                line = list(color = qualcolors[5]), marker = list(color = qualcolors[5]))%>%             
+            layout(
+                barmode = 'stack', 
+                title = "", showlegend = FALSE, 
+                xaxis = list(title = "<br>Number (per 1000)",  
+                             showgrid = FALSE, showticklabels = TRUE),
+                yaxis = list(title = "",
+                             tickfont = list(size=9),
+                             categoryorder = "total descending")
+            ) 
+    })      
     output$plot_rate_total <- renderPlotly({
         
         dtafig<-dta%>%
@@ -3907,6 +4072,156 @@ server<-function(input, output, session) {
             )
     })
     
+    output$cplot_rate_total_trend <- renderPlotly({
+        
+        dtafig<-dta%>%filter(college==input$college_tab7)%>%
+            mutate(year=as.character(year))
+        # dtafig<-dta%>%filter(college=="Haverford")%>%
+        #     mutate(year=as.character(year))%>%
+        #     select(college, year, starts_with("rate_total_"))
+        
+        dtafig%>%
+            plot_ly(
+                y = ~year,
+                type="bar", 
+                x = ~rate_total_criminal, 
+                hovertemplate = paste0(
+                    dtafig$college, 
+                    "<br>Year: ", dtafig$year, 
+                    "<br>Number of criminal offences (per 1000): ", dtafig$rate_total_criminal),
+                line = list(color = redcolors[7]), marker = list(color = redcolors[7]))%>%   
+            add_trace(
+                x = ~rate_total_vawa,
+                hovertemplate = ~paste(
+                    dtafig$college,
+                    "<br>Year: ", dtafig$year,
+                    "<br>Number of vawa offences (per 1000): ", dtafig$rate_total_vawa),
+                line = list(color = redcolors[5]), marker = list(color = redcolors[5]))%>%
+            add_trace(
+                x = ~rate_total_arrests,
+                hovertemplate = ~paste(
+                    dtafig$college,
+                    "<br>Year: ", dtafig$year,
+                    "<br>Number of arrests (per 1000): ", dtafig$rate_total_arrests),
+                line = list(color = redcolors[3]), marker = list(color = redcolors[3]))%>%
+            layout(
+                barmode = 'stack', 
+                title = "", showlegend = FALSE, 
+                xaxis = list(title = "<br>Number (per 1000)",  
+                             showgrid = FALSE, showticklabels = TRUE),
+                yaxis = list(title = "",
+                             tickfont = list(size=9))
+            ) 
+    })    
+    
+    output$cplot_rate_total_criminal_trend <- renderPlotly({
+        
+        dtafig<-dta%>%filter(college==input$college_tab7)%>%
+            mutate(year=as.character(year))
+        
+        dtafig%>%
+            plot_ly(
+                y = ~year,
+                type="bar", 
+                x = ~rate_murder_non_negligent_manslaughter, 
+                hovertemplate = paste0(
+                    dtafig$college, 
+                    "<br>Year: ", dtafig$year, 
+                    "<br>Number of murder_non_negligent_manslaughter (per 1000): ", dtafig$rate_murder_non_negligent_manslaughter),
+                line = list(color = bluecolors[7]), marker = list(color = bluecolors[7]))%>%   
+            add_trace(
+                x = ~rate_negligent_manslaughter,
+                hovertemplate = ~paste(
+                    dtafig$college,
+                    "<br>Year: ", dtafig$year,
+                    "<br>Number of negligent_manslaughter (per 1000): ", dtafig$rate_negligent_manslaughter),
+                line = list(color = bluecolors[5]), marker = list(color = bluecolors[5]))%>%   
+            add_trace(
+                x = ~rate_sex_offenses_forcible,
+                hovertemplate = ~paste(
+                    dtafig$college,
+                    "<br>Year: ", dtafig$year,
+                    "<br>Number of sex_offenses_forcible (per 1000): ", dtafig$rate_sex_offenses_forcible),
+                line = list(color = orangecolors[7]), marker = list(color = orangecolors[7]))%>%   
+            add_trace(
+                x = ~rate_rape,
+                hovertemplate = ~paste(
+                    dtafig$college,
+                    "<br>Year: ", dtafig$year,
+                    "<br>Number of rape (per 1000): ", dtafig$rate_rape),
+                line = list(color = orangecolors[6]), marker = list(color = orangecolors[6]))%>%   
+            add_trace(
+                x = ~rate_fondling,
+                hovertemplate = ~paste(
+                    dtafig$college,
+                    "<br>Year: ", dtafig$year,
+                    "<br>Number of fondling (per 1000): ", dtafig$rate_fondling),
+                line = list(color = orangecolors[5]), marker = list(color = orangecolors[5]))%>%   
+            add_trace(
+                x = ~rate_sex_offenses_non_forcible,
+                hovertemplate = ~paste(
+                    dtafig$college,
+                    "<br>Year: ", dtafig$year,
+                    "<br>Number of sex_offenses_non_forcible (per 1000): ", dtafig$rate_sex_offenses_non_forcible),
+                line = list(color = orangecolors[4]), marker = list(color = orangecolors[4]))%>%   
+            add_trace(
+                x = ~rate_incest,
+                hovertemplate = ~paste(
+                    dtafig$college,
+                    "<br>Year: ", dtafig$year,
+                    "<br>Number of incest (per 1000): ", dtafig$rate_incest),
+                line = list(color = orangecolors[3]), marker = list(color = orangecolors[3]))%>%   
+            add_trace(
+                x = ~rate_statutory_rape,
+                hovertemplate = ~paste(
+                    dtafig$college,
+                    "<br>Year: ", dtafig$year,
+                    "<br>Number of statutory_rape (per 1000): ", dtafig$rate_statutory_rape),
+                line = list(color = orangecolors[2]), marker = list(color = orangecolors[2]))%>%   
+            add_trace(
+                x = ~rate_robbery,
+                hovertemplate = ~paste(
+                    dtafig$college,
+                    "<br>Year: ", dtafig$year,
+                    "<br>Number of robbery (per 1000): ", dtafig$rate_robbery),
+                line = list(color = qualcolors[9]), marker = list(color = qualcolors[9]))%>%
+            add_trace(
+                x = ~rate_aggravated_assault,
+                hovertemplate = ~paste(
+                    dtafig$college,
+                    "<br>Year: ", dtafig$year,
+                    "<br>Number of aggravated_assault (per 1000): ", dtafig$rate_aggravated_assault),
+                line = list(color = qualcolors[8]), marker = list(color = qualcolors[8]))%>%     
+            add_trace(
+                x = ~rate_burglary,
+                hovertemplate = ~paste(
+                    dtafig$college,
+                    "<br>Year: ", dtafig$year,
+                    "<br>Number of burglary (per 1000): ", dtafig$rate_burglary),
+                line = list(color = qualcolors[7]), marker = list(color = qualcolors[7]))%>%     
+            add_trace(
+                x = ~rate_motor_vehicle_theft,
+                hovertemplate = ~paste(
+                    dtafig$college,
+                    "<br>Year: ", dtafig$year,
+                    "<br>Number of motor_vehicle_theft (per 1000): ", dtafig$rate_motor_vehicle_theft),
+                line = list(color = qualcolors[6]), marker = list(color = qualcolors[6]))%>%     
+            add_trace(
+                x = ~rate_arson,
+                hovertemplate = ~paste(
+                    dtafig$college,
+                    "<br>Year: ", dtafig$year,
+                    "<br>Number of arson (per 1000): ", dtafig$rate_arson),
+                line = list(color = qualcolors[5]), marker = list(color = qualcolors[5]))%>%             
+            layout(
+                barmode = 'stack', 
+                title = "", showlegend = FALSE, 
+                xaxis = list(title = "<br>Number (per 1000)",  
+                             showgrid = FALSE, showticklabels = TRUE),
+                yaxis = list(title = "",
+                             tickfont = list(size=9))
+            ) 
+    })  
     ##### output: Annex #####
     
     output$table_list <- renderTable({
