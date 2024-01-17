@@ -598,17 +598,17 @@ ui<-fluidPage(
                                  column(4,
                                         h5("Criminal offences (per 1000 students), latest year"),
                                         plotlyOutput("plot_rate_criminal_rank",
-                                                     width = 400, height = 400)
+                                                     width = 400, height = 600)
                                  ),
                                  column(4,
                                         h5("VAWA offences (per 1000 students), latest year"),
                                         plotlyOutput("plot_rate_vawa_rank",
-                                                     width = 400, height = 400)
+                                                     width = 400, height = 600)
                                  ),
                                  column(4,
                                         h5("Arrests (per 1000 students), latest year"),    
                                         plotlyOutput("plot_rate_arrest_rank",
-                                                     width = 400, height = 400)
+                                                     width = 400, height = 600)
                                  )
                              ),
                              fluidRow(
@@ -625,15 +625,18 @@ ui<-fluidPage(
                                         plotlyOutput("plot_rate_criminal_by_location_rank",
                                                      width = 400, height = 600),
                                         h6(strong("LEGEND")), 
-                                        h6(strong("On-campus"), 
-                                           "(1) Any building or property owned or controlled by an institution within the same reasonably contiguous geographic area and used by the institution in direct support of, or in a manner related to, the institution's educational purposes, including residence halls; and (2) Any building or property that is within or reasonably contiguous to paragraph (1) of this definition, that is owned by the institution but controlled by another person, is frequently used by students, and supports institutional purposes (such as a food or other retail vendor).",
+                                        h6(strong("On-campus, student housing"), 
+                                           "Any student housing facility that is owned or controlled by the institution, or is located on property that is owned or controlled by the institution, and is within the reasonably contiguous geographic area that makes up the campus is considered an on-campus student housing facility.",
                                            style = "color:#8c2d04"),  
+                                        h6(strong("On-campus, excluding student housing"), 
+                                           "(1) Any building or property owned or controlled by an institution within the same reasonably contiguous geographic area and used by the institution in direct support of, or in a manner related to, the institution's educational purposes, including residence halls; and (2) Any building or property that is within or reasonably contiguous to paragraph (1) of this definition, that is owned by the institution but controlled by another person, is frequently used by students, and supports institutional purposes (such as a food or other retail vendor).",
+                                           style = "color:#f16913"),  
                                         h6(strong("Noncampus building or property"), 
                                            "(1) Any building or property owned or controlled by a student organization that is officially recognized by the institution; or (2) Any building or property owned or controlled by an institution that is used in direct support of, or in relation to, the institution's educational purposes, is frequently used by students, and is not within the same reasonably contiguous geographic area of the institution.",
-                                           style = "color:#f16913"),  
+                                           style = "color:#fdae6b"),  
                                         h6(strong("Public properties"), 
                                            "All public property, including thoroughfares, streets, sidewalks, and parking facilities, that is within the campus, or immediately adjacent to and accessible from the campus.",
-                                           style = "color:#fdae6b")  
+                                           style = "color:#807dba")  
                                  )
                              ),
                              # safety - trends ####
@@ -771,14 +774,15 @@ ui<-fluidPage(
                              ),
                              # graduation ####
                              fluidRow(
-                                 h4("How about six-year graduation rates? - forthcoming", style = "color:blue"),
+                                 h4("How about six-year graduation rates?", style = "color:blue"),
+                                 p("Six-year graduation rate of a cohort that entered 6 years before the reporting year"), 
                                  column(4,
-                                        h5("Retention rate over time"),    
+                                        h5("Graduation rate over time"),    
                                         plotlyOutput("plot_graduation_rank",
                                                      width = 400, height = 400)
                                  ),                                  
                                  column(4,
-                                        h5("Retention rate over time"),    
+                                        h5("Graduation rate over time"),    
                                         plotlyOutput("plot_graduation_trend",
                                                      width = 400, height = 400)
                                  ) 
@@ -980,7 +984,7 @@ ui<-fluidPage(
                                  column(4,
                                         h5("The total number of criminal offences, VAWA offences, or arrets by year (per 1000 students)"),
                                         plotlyOutput("cplot_rate_total_trend",
-                                                     width = 400, height = 600),
+                                                     width = 400, height = 400),
                                         h6(strong("LEGEND")), 
                                         h6("Criminal offences", style = "color:#99000d"),  
                                         h6("VAWA offences", style = "color:#ef3b2c"),  
@@ -988,9 +992,27 @@ ui<-fluidPage(
                                  ),
                                  column(4,
                                         h5("The number of criminal offences by category and year (per 1000 students)"),
-                                        plotlyOutput("cplot_rate_total_criminal_trend",
-                                                     width = 400, height = 600),
+                                        plotlyOutput("cplot_rate_criminal_by_type_trend",
+                                                     width = 400, height = 400),
                                         h6("Hover over to see type of criminal offences")
+                                 ),
+                                 column(4,
+                                        h5("The number of criminal offences by category and year (per 1000 students)"),
+                                        plotlyOutput("cplot_rate_criminal_by_location_trend",
+                                                     width = 400, height = 400),
+                                        h6(strong("LEGEND")), 
+                                        h6(strong("On-campus, student housing"), 
+                                           "Any student housing facility that is owned or controlled by the institution, or is located on property that is owned or controlled by the institution, and is within the reasonably contiguous geographic area that makes up the campus is considered an on-campus student housing facility.",
+                                           style = "color:#8c2d04"),  
+                                        h6(strong("On-campus, excluding student housing"), 
+                                           "(1) Any building or property owned or controlled by an institution within the same reasonably contiguous geographic area and used by the institution in direct support of, or in a manner related to, the institution's educational purposes, including residence halls; and (2) Any building or property that is within or reasonably contiguous to paragraph (1) of this definition, that is owned by the institution but controlled by another person, is frequently used by students, and supports institutional purposes (such as a food or other retail vendor).",
+                                           style = "color:#f16913"),  
+                                        h6(strong("Noncampus building or property"), 
+                                           "(1) Any building or property owned or controlled by a student organization that is officially recognized by the institution; or (2) Any building or property owned or controlled by an institution that is used in direct support of, or in relation to, the institution's educational purposes, is frequently used by students, and is not within the same reasonably contiguous geographic area of the institution.",
+                                           style = "color:#fdae6b"),  
+                                        h6(strong("Public properties"), 
+                                           "All public property, including thoroughfares, streets, sidewalks, and parking facilities, that is within the campus, or immediately adjacent to and accessible from the campus.",
+                                           style = "color:#807dba")  
                                  ) 
                              )
                     ),         
@@ -2745,26 +2767,37 @@ server<-function(input, output, session) {
             plot_ly(
                 y = ~college,
                 type="bar", 
-                x = ~rate_total_criminal_oncampus, 
+                x = ~rate_total_criminal_oncampus_housing, 
                 line = list(color = orangecolors[7]), 
                 marker = list(color = orangecolors[7]),
                 hovertemplate = paste0(
                     dtafig$college,       
-                    "<br>Number of criminal offences on-campus (per 1000): ", dtafig$rate_total_criminal_oncampus))%>%   
+                    "<br>Number of criminal offences on-campus, student housing (per 1000): ", 
+                    dtafig$rate_total_criminal_oncampus_housing))%>%   
             add_trace(
-                x = ~rate_total_criminal_noncampus, 
+                x = ~rate_total_criminal_oncampus_nonhousing, 
                 line = list(color = orangecolors[5]), 
                 marker = list(color = orangecolors[5]),
                 hovertemplate = paste0(
                     dtafig$college,       
-                    "<br>Number of criminal offences non-campus (per 1000): ", dtafig$rate_total_criminal_noncampus))%>%   
+                    "<br>Number of criminal offences on-campus, excluding student housing (per 1000): ", 
+                    dtafig$rate_total_criminal_oncampus_nonhousing))%>%   
             add_trace(
-                x = ~rate_total_criminal_public, 
+                x = ~rate_total_criminal_noncampus, 
                 line = list(color = orangecolors[3]), 
                 marker = list(color = orangecolors[3]),
                 hovertemplate = paste0(
                     dtafig$college,       
-                    "<br>Number of criminal offences on public properties (per 1000): ", dtafig$rate_total_criminal_public))%>%   
+                    "<br>Number of criminal offences non-campus (per 1000): ", 
+                    dtafig$rate_total_criminal_noncampus))%>%   
+            add_trace(
+                x = ~rate_total_criminal_public, 
+                line = list(color = purplecolors[5]), 
+                marker = list(color = purplecolors[5]),
+                hovertemplate = paste0(
+                    dtafig$college,       
+                    "<br>Number of criminal offences on public properties (per 1000): ", 
+                    dtafig$rate_total_criminal_public))%>%   
             layout(
                 title = "", 
                 barmode = 'stack', 
@@ -4189,7 +4222,7 @@ server<-function(input, output, session) {
             ) 
     })    
     
-    output$cplot_rate_total_criminal_trend <- renderPlotly({
+    output$cplot_rate_criminal_by_type_trend <- renderPlotly({
         
         dtafig<-dta%>%filter(college==input$college_tab7)%>%
             mutate(year=as.character(year))
@@ -4297,6 +4330,60 @@ server<-function(input, output, session) {
                              tickfont = list(size=9))
             ) 
     })  
+    
+    output$cplot_rate_criminal_by_location_trend <- renderPlotly({
+        
+        dtafig<-dta%>%filter(college==input$college_tab7)%>%
+            mutate(year=as.character(year))
+        
+        dtafig%>%
+            plot_ly(
+                y = ~year,
+                type="bar", 
+                x = ~rate_total_criminal_oncampus_housing, 
+                line = list(color = orangecolors[7]), 
+                marker = list(color = orangecolors[7]),
+                hovertemplate = paste0(
+                    dtafig$college,       
+                    "<br>Number of criminal offences on-campus, student housing (per 1000): ", 
+                    dtafig$rate_total_criminal_oncampus_housing))%>%   
+            add_trace(
+                x = ~rate_total_criminal_oncampus_nonhousing, 
+                line = list(color = orangecolors[5]), 
+                marker = list(color = orangecolors[5]),
+                hovertemplate = paste0(
+                    dtafig$college,       
+                    "<br>Number of criminal offences on-campus, excluding student housing (per 1000): ", 
+                    dtafig$rate_total_criminal_oncampus_nonhousing))%>%   
+            add_trace(
+                x = ~rate_total_criminal_noncampus, 
+                line = list(color = orangecolors[3]), 
+                marker = list(color = orangecolors[3]),
+                hovertemplate = paste0(
+                    dtafig$college,       
+                    "<br>Number of criminal offences non-campus (per 1000): ", 
+                    dtafig$rate_total_criminal_noncampus))%>%   
+            add_trace(
+                x = ~rate_total_criminal_public, 
+                line = list(color = purplecolors[5]), 
+                marker = list(color = purplecolors[5]),
+                hovertemplate = paste0(
+                    dtafig$college,       
+                    "<br>Number of criminal offences on public properties (per 1000): ", 
+                    dtafig$rate_total_criminal_public))%>%   
+            layout(
+                title = "", showlegend = FALSE, 
+                barmode = 'stack', 
+                xaxis = list(title = "<br>Number (per 1000)",  
+                             #range=c(0, 100), 
+                             showgrid = FALSE, showticklabels = TRUE),
+                yaxis = list(title = "",
+                             tickfont = list(size=9))
+                
+            )
+        
+        
+    })      
     ##### output: Annex #####
     
     output$table_list <- renderTable({
@@ -4308,7 +4395,6 @@ server<-function(input, output, session) {
                    open, public, women)%>%
             filter(is.na(tiny)==FALSE)%>%
             arrange(college)
-            
         
         names(temp) <- toupper(names(temp))
         
