@@ -587,11 +587,6 @@ ui<-fluidPage(
                                         h6("Arrests", style = "color:#fc9272"),  
                                  ),
                                  column(4,
-                                        h5("Criminal offences by category (per 1000 students), latest year"),
-                                        plotlyOutput("plot_rate_total_criminal_rank",
-                                                     width = 400, height = 600)
-                                 ),
-                                 column(4,
                                         h5("Criminal offences, VAWA offences, or arrets in total (per 1000 students), trends"),
                                         plotlyOutput("plot_rate_total",
                                                      width = 400, height = 600)
@@ -614,6 +609,31 @@ ui<-fluidPage(
                                         h5("Arrests (per 1000 students), latest year"),    
                                         plotlyOutput("plot_rate_arrest_rank",
                                                      width = 400, height = 400)
+                                 )
+                             ),
+                             fluidRow(
+                                 h4("Further look at the latest data by criminal offences (per 1000 students)", style = "color:red"),
+                                 column(4,
+                                        h5("Criminal offences by category (per 1000 students), latest year"),
+                                        plotlyOutput("plot_rate_criminal_by_type_rank",
+                                                     width = 400, height = 600),
+                                        h6(strong("LEGEND")), 
+                                        h6("Hover over to see type of criminal offences")
+                                 ),
+                                 column(4,
+                                        h5("Criminal offences by location (per 1000 students), latest year"),
+                                        plotlyOutput("plot_rate_criminal_by_location_rank",
+                                                     width = 400, height = 600),
+                                        h6(strong("LEGEND")), 
+                                        h6(strong("On-campus"), 
+                                           "(1) Any building or property owned or controlled by an institution within the same reasonably contiguous geographic area and used by the institution in direct support of, or in a manner related to, the institution's educational purposes, including residence halls; and (2) Any building or property that is within or reasonably contiguous to paragraph (1) of this definition, that is owned by the institution but controlled by another person, is frequently used by students, and supports institutional purposes (such as a food or other retail vendor).",
+                                           style = "color:#8c2d04"),  
+                                        h6(strong("Noncampus building or property"), 
+                                           "(1) Any building or property owned or controlled by a student organization that is officially recognized by the institution; or (2) Any building or property owned or controlled by an institution that is used in direct support of, or in relation to, the institution's educational purposes, is frequently used by students, and is not within the same reasonably contiguous geographic area of the institution.",
+                                           style = "color:#f16913"),  
+                                        h6(strong("Public properties"), 
+                                           "All public property, including thoroughfares, streets, sidewalks, and parking facilities, that is within the campus, or immediately adjacent to and accessible from the campus.",
+                                           style = "color:#fdae6b")  
                                  )
                              ),
                              # safety - trends ####
@@ -2490,8 +2510,103 @@ server<-function(input, output, session) {
                 barmode = 'stack'
             ) 
     })            
-
-    output$plot_rate_total_criminal_rank <- renderPlotly({
+    
+    output$plot_rate_total <- renderPlotly({
+        
+        dtafig<-dta%>%
+            filter(grepl(sub("\\'.*", "", 
+                             sub("\\s.*", "", 
+                                 tolower(input$collegegroup_tab5))),
+                         group))
+        
+        dtafig%>%
+            plot_ly(
+                x = ~year, y = ~rate_total_css,
+                type="scatter", mode = 'lines+markers', 
+                color = ~college,
+                hovertemplate = paste0(
+                    dtafig$college,       
+                    "<br>Year: ", dtafig$year, 
+                    "<br>Number of criminal or VAWA offences, and arrests (per 1000): ", dtafig$rate_total_css))%>%
+            layout(
+                title = "", showlegend = FALSE, 
+                shapes = list(vline(2021)),
+                yaxis = list(title = "<br>Number (per 1000)",  
+                             #range=c(0, 100), 
+                             showgrid = FALSE, 
+                             showticklabels = TRUE),
+                xaxis = list(title = "Year", showgrid = FALSE , range=c(2016, 2024))
+            )
+    })      
+    
+    output$plot_rate_criminal_rank <- renderPlotly({
+        
+        dtafig<-dta%>%
+            filter(grepl(sub("\\'.*", "", 
+                             sub("\\s.*", "", 
+                                 tolower(input$collegegroup_tab5))),
+                         group))%>%
+            
+            filter( is.na(institution_size)==FALSE)%>%
+            group_by(college)%>%
+            mutate(yearlatest=max(year))%>%
+            ungroup()%>%
+            
+            filter(year==yearlatest)
+        
+        dtafig%>%
+            plot_ly(
+                y = ~college,
+                type="bar", 
+                x = ~rate_total_criminal, 
+                line = list(color = redcolors[7]), 
+                marker = list(color = redcolors[7]),
+                hovertemplate = paste0(
+                    dtafig$college,    
+                    "<br>Year: ", dtafig$year, 
+                    "<br>Number of any criminal (per 1000): ", dtafig$rate_total_criminal))%>%   
+            layout(
+                title = "", 
+                #shapes = list(vline(1.84)),  #JHU 2021 reference
+                xaxis = list(title = "<br>Number (per 1000)",  
+                             #range=c(0, 100), 
+                             showgrid = FALSE, showticklabels = TRUE),
+                yaxis = list(title = "",
+                             tickfont = list(size=9),
+                             categoryorder = "total descending"),
+                showlegend = FALSE
+            )
+    })        
+    
+    output$plot_rate_criminal <- renderPlotly({
+        
+        dtafig<-dta%>%
+            filter(grepl(sub("\\'.*", "", 
+                             sub("\\s.*", "", 
+                                 tolower(input$collegegroup_tab5))),
+                         group))
+        
+        dtafig%>%
+            plot_ly(
+                x = ~year, y = ~rate_total_criminal,
+                type="scatter", mode = 'lines+markers', 
+                color = ~college,
+                hovertemplate = paste0(
+                    dtafig$college,       
+                    "<br>Year: ", dtafig$year, 
+                    "<br>Number of any criminal (per 1000): ", dtafig$rate_total_criminal))%>%
+            layout(
+                title = "", showlegend = FALSE, 
+                shapes = list(vline(2021)),
+                yaxis = list(title = "<br>Number (per 1000)",  
+                             #range=c(0, 100), 
+                             showgrid = FALSE, 
+                             showticklabels = TRUE),
+                xaxis = list(title = "Year", showgrid = FALSE , range=c(2016, 2024))
+            )
+    })    
+    
+    output$plot_rate_criminal_by_type_rank <- renderPlotly({
         
         dtafig<-dta%>%
             filter(grepl(sub("\\'.*", "", 
@@ -2610,33 +2725,59 @@ server<-function(input, output, session) {
                              categoryorder = "total descending")
             ) 
     })      
-    output$plot_rate_total <- renderPlotly({
+    
+    output$plot_rate_criminal_by_location_rank <- renderPlotly({
         
         dtafig<-dta%>%
             filter(grepl(sub("\\'.*", "", 
                              sub("\\s.*", "", 
                                  tolower(input$collegegroup_tab5))),
-                         group))
+                         group))%>%
+            
+            filter( is.na(institution_size)==FALSE)%>%
+            group_by(college)%>%
+            mutate(yearlatest=max(year))%>%
+            ungroup()%>%
+            
+            filter(year==yearlatest)    
         
         dtafig%>%
             plot_ly(
-                x = ~year, y = ~rate_total_css,
-                type="scatter", mode = 'lines+markers', 
-                color = ~college,
+                y = ~college,
+                type="bar", 
+                x = ~rate_total_criminal_oncampus, 
+                line = list(color = orangecolors[7]), 
+                marker = list(color = orangecolors[7]),
                 hovertemplate = paste0(
                     dtafig$college,       
-                    "<br>Year: ", dtafig$year, 
-                    "<br>Number of criminal or VAWA offences, and arrests (per 1000): ", dtafig$rate_total_css))%>%
+                    "<br>Number of criminal offences on-campus (per 1000): ", dtafig$rate_total_criminal_oncampus))%>%   
+            add_trace(
+                x = ~rate_total_criminal_noncampus, 
+                line = list(color = orangecolors[5]), 
+                marker = list(color = orangecolors[5]),
+                hovertemplate = paste0(
+                    dtafig$college,       
+                    "<br>Number of criminal offences non-campus (per 1000): ", dtafig$rate_total_criminal_noncampus))%>%   
+            add_trace(
+                x = ~rate_total_criminal_public, 
+                line = list(color = orangecolors[3]), 
+                marker = list(color = orangecolors[3]),
+                hovertemplate = paste0(
+                    dtafig$college,       
+                    "<br>Number of criminal offences on public properties (per 1000): ", dtafig$rate_total_criminal_public))%>%   
             layout(
-                title = "", showlegend = FALSE, 
-                shapes = list(vline(2021)),
-                yaxis = list(title = "<br>Number (per 1000)",  
+                title = "", 
+                barmode = 'stack', 
+                xaxis = list(title = "<br>Number (per 1000)",  
                              #range=c(0, 100), 
-                             showgrid = FALSE, 
-                             showticklabels = TRUE),
-                xaxis = list(title = "Year", showgrid = FALSE , range=c(2016, 2024))
+                             showgrid = FALSE, showticklabels = TRUE),
+                yaxis = list(title = "",
+                             tickfont = list(size=9),
+                             categoryorder = "total descending"),
+                showlegend = FALSE
             )
-    })          
+    })         
+
     output$plot_rate_arrest_rank <- renderPlotly({
 
         dtafig<-dta%>%
@@ -2703,73 +2844,7 @@ server<-function(input, output, session) {
             )
     })      
     
-    output$plot_rate_criminal_rank <- renderPlotly({
-        
-        dtafig<-dta%>%
-            filter(grepl(sub("\\'.*", "", 
-                             sub("\\s.*", "", 
-                                 tolower(input$collegegroup_tab5))),
-                         group))%>%
-            
-            filter( is.na(institution_size)==FALSE)%>%
-            group_by(college)%>%
-            mutate(yearlatest=max(year))%>%
-            ungroup()%>%
-            
-            filter(year==yearlatest)
-        
-        dtafig%>%
-            plot_ly(
-                y = ~college,
-                type="bar", 
-                x = ~rate_total_criminal, 
-                line = list(color = redcolors[7]), 
-                marker = list(color = redcolors[7]),
-                hovertemplate = paste0(
-                    dtafig$college,    
-                    "<br>Year: ", dtafig$year, 
-                    "<br>Number of any criminal (per 1000): ", dtafig$rate_total_criminal))%>%   
-            layout(
-                title = "", 
-                #shapes = list(vline(1.84)),  #JHU 2021 reference
-                xaxis = list(title = "<br>Number (per 1000)",  
-                             #range=c(0, 100), 
-                             showgrid = FALSE, showticklabels = TRUE),
-                yaxis = list(title = "",
-                             tickfont = list(size=9),
-                             categoryorder = "total descending"),
-                showlegend = FALSE
-            )
-    })        
-    
-    output$plot_rate_criminal <- renderPlotly({
-        
-        dtafig<-dta%>%
-            filter(grepl(sub("\\'.*", "", 
-                             sub("\\s.*", "", 
-                                 tolower(input$collegegroup_tab5))),
-                         group))
-        
-        dtafig%>%
-            plot_ly(
-                x = ~year, y = ~rate_total_criminal,
-                type="scatter", mode = 'lines+markers', 
-                color = ~college,
-                hovertemplate = paste0(
-                    dtafig$college,       
-                    "<br>Year: ", dtafig$year, 
-                    "<br>Number of any criminal (per 1000): ", dtafig$rate_total_criminal))%>%
-            layout(
-                title = "", showlegend = FALSE, 
-                shapes = list(vline(2021)),
-                yaxis = list(title = "<br>Number (per 1000)",  
-                             #range=c(0, 100), 
-                             showgrid = FALSE, 
-                             showticklabels = TRUE),
-                xaxis = list(title = "Year", showgrid = FALSE , range=c(2016, 2024))
-            )
-    })    
-    
+
     output$plot_rate_vawa_rank <- renderPlotly({
         
         dtafig<-dta%>%
