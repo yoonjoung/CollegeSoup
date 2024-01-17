@@ -555,45 +555,68 @@ ui<-fluidPage(
                                    actionLink("link_tab4_annex", "See Annex"),
                                    "for the list of colleges in each group.") 
                              ),
-                             # safety - arrests ####
+                             # safety - overall: criminal offences, VAWA offences, or arrests ####
                              fluidRow(
-                                 h4("Campus sagety, in terms of any arrests...", style = "color:blue"),  
+                                 h4("Campus safety, in terms of criminal offences, VAWA offences, or arrets...", style = "color:red"),
+                                 p(strong("- Criminal offenses "), "includes: ",
+                                   "Murder/Non-negligent manslaughter; Negligent manslaughter; ",
+                                   "Rape; Fondling; Incest; Statutory rape; ",
+                                   "Robbery; Aggravated assault; Burglary; ",
+                                   "Motor vehicle theft; and Arson."),  
+                                 p(strong("- Violence against women act (VAWA) offences "), "includes: ",
+                                   "Domestic violence; Dating violence; and Stalking."), 
+                                 p(strong("- Arrests for law violation "), "includes: ", 
+                                   "Weapons carrying, possessing, etc.; Drug abuse violations; and Liquor law violations."),  
                                  column(4,
-                                        h5("Any arrests (per 1000 students), latest year"),    
-                                        plotlyOutput("plot_rate_arrest_rank",
-                                                     width = 400, height = 400)
+                                        h5("Criminal offences, VAWA offences, or arrets (per 1000 students), latest year"),
+                                        plotlyOutput("plot_rate_total_rank",
+                                                     width = 400, height = 600),
+                                        h6(strong("LEGEND")), 
+                                        h6("Criminal offences", style = "color:#99000d"),  
+                                        h6("VAWA offences", style = "color:#ef3b2c"),  
+                                        h6("Arrests", style = "color:#fc9272"),  
                                  ),
                                  column(4,
-                                        h5("Any arrests (per 1000 students), trends"),    
-                                        plotlyOutput("plot_rate_arrest",
-                                                     width = 400, height = 400)
-                                 ),
+                                        h5("Criminal offences, VAWA offences, or arrets in total (per 1000 students), trends"),
+                                        plotlyOutput("plot_rate_total",
+                                                     width = 400, height = 600)
+                                 )
                              ),
-                             # safety - criminal cases ####
+                             # safety - rank ####
                              fluidRow(
-                                 h4("Campus sagety, in terms of any criminal cases...", style = "color:blue"),
+                                 h4("Latest data by criminal offences, VAWA offences, or arrets (per 1000 students)", style = "color:red"),
                                  column(4,
-                                        h5("Criminal cases (per 1000 students), latest year"),
+                                        h5("Criminal offences (per 1000 students), latest year"),
                                         plotlyOutput("plot_rate_criminal_rank",
                                                      width = 400, height = 400)
                                  ),
                                  column(4,
-                                        h5("Criminal cases (per 1000 students), trends"),
-                                        plotlyOutput("plot_rate_criminal",
-                                                     width = 400, height = 400)
-                                 )
-                             ),
-                             # safety - vawa ####
-                             fluidRow(
-                                 h4("Campus sagety, in terms of any violence against women act (VAWA) incidents ...", style = "color:blue"),
-                                 column(4,
-                                        h5("VAWA cases (per 1000 students), latest year"),
+                                        h5("VAWA offences (per 1000 students), latest year"),
                                         plotlyOutput("plot_rate_vawa_rank",
                                                      width = 400, height = 400)
                                  ),
                                  column(4,
-                                        h5("VAWA cases (per 1000 students), trends"),
+                                        h5("Arrests (per 1000 students), latest year"),    
+                                        plotlyOutput("plot_rate_arrest_rank",
+                                                     width = 400, height = 400)
+                                 ),
+                             ),
+                             # safety - trends ####
+                             fluidRow(
+                                 h4("Trends by criminal offences, VAWA offences, or arrets (per 1000 students)", style = "color:red"),
+                                 column(4,
+                                        h5("Criminal offences (per 1000 students), trends"),
+                                        plotlyOutput("plot_rate_criminal",
+                                                     width = 400, height = 400)
+                                 ),
+                                 column(4,
+                                        h5("VAWA offences (per 1000 students), trends"),
                                         plotlyOutput("plot_rate_vawa",
+                                                     width = 400, height = 400)
+                                 ),
+                                 column(4,
+                                        h5("Arrests (per 1000 students), trends"),    
+                                        plotlyOutput("plot_rate_arrest",
                                                      width = 400, height = 400)
                                  )
                              ),
@@ -2365,7 +2388,87 @@ server<-function(input, output, session) {
     })    
     
     ##### output: Tab 5: student life #####    
-    
+
+    output$plot_rate_total_rank <- renderPlotly({
+        
+        dtafig<-dta%>%
+            filter(grepl(sub("\\'.*", "", 
+                             sub("\\s.*", "", 
+                                 tolower(input$collegegroup_tab5))),
+                         group))%>%
+            
+            filter( is.na(institution_size)==FALSE)%>%
+            group_by(college)%>%
+            mutate(yearlatest=max(year))%>%
+            ungroup()%>%
+            
+            filter(year==yearlatest)
+        
+        dtafig%>%
+            plot_ly(
+                y = ~college,
+                type="bar", 
+                x = ~rate_total_criminal, 
+                hovertemplate = paste0(
+                    dtafig$college, 
+                    "<br>Year: ", dtafig$year, 
+                    "<br>Number of criminal offences (per 1000): ", dtafig$rate_total_criminal),
+                line = list(color = redcolors[7]), marker = list(color = redcolors[7]))%>%   
+            add_trace(
+                x = ~rate_total_vawa,
+                hovertemplate = ~paste(
+                    dtafig$college, 
+                    "<br>Year: ", dtafig$year, 
+                    "<br>Number of vawa offences (per 1000): ", dtafig$rate_total_vawa), 
+                line = list(color = redcolors[5]), marker = list(color = redcolors[5]))%>%   
+            add_trace(
+                x = ~rate_total_arrests,
+                hovertemplate = ~paste(
+                    dtafig$college, 
+                    "<br>Year: ", dtafig$year, 
+                    "<br>Number of arrests (per 1000): ", dtafig$rate_total_arrests), 
+                line = list(color = redcolors[3]), marker = list(color = redcolors[3]))%>%   
+            
+            layout(
+                title = "", showlegend = FALSE, 
+                #shapes = list(vline(2.78)),  #JHU 2021 reference
+                xaxis = list(title = "<br>Number (per 1000)",  
+                             #range=c(0, 100), 
+                             showgrid = FALSE, showticklabels = TRUE),
+                yaxis = list(title = "",
+                             tickfont = list(size=9),
+                             categoryorder = "total descending"),
+                barmode = 'stack'
+            ) 
+    })            
+
+    output$plot_rate_total <- renderPlotly({
+        
+        dtafig<-dta%>%
+            filter(grepl(sub("\\'.*", "", 
+                             sub("\\s.*", "", 
+                                 tolower(input$collegegroup_tab5))),
+                         group))
+        
+        dtafig%>%
+            plot_ly(
+                x = ~year, y = ~rate_total_css,
+                type="scatter", mode = 'lines+markers', 
+                color = ~college,
+                hovertemplate = paste0(
+                    dtafig$college,       
+                    "<br>Year: ", dtafig$year, 
+                    "<br>Number of criminal or VAWA offences, and arrests (per 1000): ", dtafig$rate_total_css))%>%
+            layout(
+                title = "", showlegend = FALSE, 
+                shapes = list(vline(2021)),
+                yaxis = list(title = "<br>Number (per 1000)",  
+                             #range=c(0, 100), 
+                             showgrid = FALSE, 
+                             showticklabels = TRUE),
+                xaxis = list(title = "Year", showgrid = FALSE , range=c(2016, 2024))
+            )
+    })          
     output$plot_rate_arrest_rank <- renderPlotly({
 
         dtafig<-dta%>%
@@ -2386,8 +2489,8 @@ server<-function(input, output, session) {
                 y = ~college,
                 type="bar", 
                 x = ~rate_total_arrests, 
-                line = list(color = greencolors[3]), 
-                marker = list(color = greencolors[3]),
+                line = list(color = redcolors[3]), 
+                marker = list(color = redcolors[3]),
                 hovertemplate = paste0(
                     dtafig$college, 
                     "<br>Year: ", dtafig$year, 
@@ -2452,14 +2555,15 @@ server<-function(input, output, session) {
                 y = ~college,
                 type="bar", 
                 x = ~rate_total_criminal, 
-                line = list(color = greencolors[3]), 
-                marker = list(color = greencolors[3]),
+                line = list(color = redcolors[7]), 
+                marker = list(color = redcolors[7]),
                 hovertemplate = paste0(
                     dtafig$college,    
                     "<br>Year: ", dtafig$year, 
                     "<br>Number of any criminal (per 1000): ", dtafig$rate_total_criminal))%>%   
             layout(
                 title = "", 
+                #shapes = list(vline(1.84)),  #JHU 2021 reference
                 xaxis = list(title = "<br>Number (per 1000)",  
                              #range=c(0, 100), 
                              showgrid = FALSE, showticklabels = TRUE),
@@ -2518,14 +2622,15 @@ server<-function(input, output, session) {
                 y = ~college,
                 type="bar", 
                 x = ~rate_total_vawa, 
-                line = list(color = greencolors[3]), 
-                marker = list(color = greencolors[3]),
+                line = list(color = redcolors[5]), 
+                marker = list(color = redcolors[5]),
                 hovertemplate = paste0(
                     dtafig$college,       
                     "<br>Year: ", dtafig$year, 
                     "<br>Number of any vawa (per 1000): ", dtafig$rate_total_vawa))%>%   
             layout(
                 title = "", 
+                #shapes = list(vline(0.94)), #JHU 2021 reference 
                 xaxis = list(title = "<br>Number (per 1000)",  
                              #range=c(0, 100), 
                              showgrid = FALSE, showticklabels = TRUE),
