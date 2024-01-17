@@ -204,29 +204,6 @@ colnames(dta_vawa)
 ```        
 
 # Gen var
-```{r genvar_arrests, results='hide'}
-temp<-dta_arrests
-
-# temp<-temp%>%
-#     filter(institution_name=="Johns Hopkins University")%>%
-#     arrange(institution_name, opeid, campus_name, campus_id, survey_year )%>%
-#     filter(campus_id<=2)%>%
-#     filter(survey_year>=2017)
-# 
-# dim(temp)
-dta <- temp%>%
-    select(institution_name, opeid, campus_name, campus_id, survey_year, 
-             institution_size, colnames(temp[9: ncol(temp)-1]))%>%
-    group_by(institution_name, opeid, campus_name, campus_id, survey_year, 
-             institution_size)%>%
-    summarise_all(list(sum), na.rm = TRUE)
-# dim(dta)
-
-dta$total_arrests <- rowSums(dta[ , colnames(dta[ , 7:ncol(dta)])])
-
-dta_arrests <- dta
-```    
-
 ```{r genvar_criminal, results='hide'}
 # temp<-dta_criminal%>%
 #     filter(institution_name=="Johns Hopkins University" &
@@ -261,15 +238,137 @@ dta$total_vawa <- rowSums(dta[ , colnames(dta[ , 7:ncol(dta)])])
 dta_vawa <- dta
 ```    
 
+```{r genvar_arrests, results='hide'}
+temp<-dta_arrests
+
+# temp<-temp%>%
+#     filter(institution_name=="Johns Hopkins University")%>%
+#     arrange(institution_name, opeid, campus_name, campus_id, survey_year )%>%
+#     filter(campus_id<=2)%>%
+#     filter(survey_year>=2017)
+# 
+# dim(temp)
+dta <- temp%>%
+    select(institution_name, opeid, campus_name, campus_id, survey_year, 
+             institution_size, colnames(temp[9: ncol(temp)-1]))%>%
+    group_by(institution_name, opeid, campus_name, campus_id, survey_year, 
+             institution_size)%>%
+    summarise_all(list(sum), na.rm = TRUE)
+# dim(dta)
+
+dta$total_arrests <- rowSums(dta[ , colnames(dta[ , 7:ncol(dta)])])
+
+dta_arrests <- dta
+```    
+
+```{r import_genvar_criminal_by_location}
+locations<-c("On_campus", 
+             #"On_campus_Student_Housing_Facilities", 
+             "Noncampus",
+             "Public_Property")
+
+# On campus #####
+dta<-read_csv(paste0(opecss,"Criminal_Offenses_", locations[1], ".csv")) 
+colnames(dta)<-tolower(colnames(dta))
+dta<-clean_names(dta)
+
+dta<-dta%>%
+    select(institution_name, opeid, campus_name, campus_id, survey_year, 
+           colnames(dta[8: ncol(dta)]))
+colnames(dta[ , 6:ncol(dta)])
+dta$total_criminal <- rowSums(dta[ , colnames(dta[ , 6:ncol(dta)])], 
+                              na.rm = TRUE)
+colnames(dta[ , 8:13])
+dta$total_criminal_sex <- rowSums(dta[ , colnames(dta[ , 8:13])], 
+                                  na.rm = TRUE)
+
+dta<-dta%>%
+    select(institution_name, opeid, campus_name, campus_id, survey_year,
+           starts_with("total_criminal"))
+
+dta_criminal1<-dta%>%
+    rename_at(.vars = vars(starts_with("total_criminal")), 
+              .funs = funs(sub("total_criminal", "total_criminal_oncampus", .)))
+
+# NON campus #####
+dta<-read_csv(paste0(opecss,"Criminal_Offenses_", locations[2], ".csv")) 
+colnames(dta)<-tolower(colnames(dta))
+dta<-clean_names(dta)
+
+dta<-dta%>%
+    select(institution_name, opeid, campus_name, campus_id, survey_year, 
+           colnames(dta[8: ncol(dta)]))
+colnames(dta[ , 6:ncol(dta)])
+dta$total_criminal <- rowSums(dta[ , colnames(dta[ , 6:ncol(dta)])], 
+                              na.rm = TRUE)
+colnames(dta[ , 8:13])
+dta$total_criminal_sex <- rowSums(dta[ , colnames(dta[ , 8:13])], 
+                                  na.rm = TRUE)
+
+dta<-dta%>%
+    select(institution_name, opeid, campus_name, campus_id, survey_year,
+           starts_with("total_criminal"))
+
+dta_criminal2<-dta%>%
+    rename_at(.vars = vars(starts_with("total_criminal")), 
+              .funs = funs(sub("total_criminal", "total_criminal_noncampus", .)))
+
+# PUBLIC property campus #####
+dta<-read_csv(paste0(opecss,"Criminal_Offenses_", locations[3], ".csv")) 
+colnames(dta)<-tolower(colnames(dta))
+dta<-clean_names(dta)
+
+dta<-dta%>%
+    select(institution_name, opeid, campus_name, campus_id, survey_year, 
+           colnames(dta[8: ncol(dta)]))
+colnames(dta[ , 6:ncol(dta)])
+dta$total_criminal <- rowSums(dta[ , colnames(dta[ , 6:ncol(dta)])], 
+                              na.rm = TRUE)
+colnames(dta[ , 8:13])
+dta$total_criminal_sex <- rowSums(dta[ , colnames(dta[ , 8:13])], 
+                                  na.rm = TRUE)
+
+dta<-dta%>%
+    select(institution_name, opeid, campus_name, campus_id, survey_year,
+           starts_with("total_criminal"))
+
+dta_criminal3<-dta%>%
+    rename_at(.vars = vars(starts_with("total_criminal")), 
+              .funs = funs(sub("total_criminal", "total_criminal_public", .)))
+
+# merge three locations #####
+dim(dta_criminal1)
+dim(dta_criminal2)
+dim(dta_criminal3)
+colnames(dta[ , 1:5])
+
+dta_criminal_by_location<-left_join(dta_criminal1, dta_criminal2,
+                                    by = c(colnames(dta[ , 1:5]))) 
+dta_criminal_by_location<-left_join(dta_criminal_by_location, dta_criminal3,
+                                    by = c(colnames(dta[ , 1:5]))) 
+colnames(dta_criminal_by_location)
+
+# merge with overall criminal data #####
+colnames(dta_criminal)
+colnames(dta_criminal_by_location)
+dim(dta_criminal)
+dim(dta_criminal_by_location)
+
+dta_criminal<-left_join(dta_criminal, dta_criminal_by_location,
+                        by = c(colnames(dta[ , 1:5])))
+dim(dta_criminal)
+```
+
+
 # Export
 
 ```{r merge}
-dim(dta_arrests)
 dim(dta_criminal)
 dim(dta_vawa)
+dim(dta_arrests)
 
-dta <- left_join(dta_criminal, dta_vawa, by=colnames(dta[ , 1:6]))
-dta <- left_join(dta, dta_arrests, by=colnames(dta[ , 1:6]))
+dta <- left_join(dta_criminal, dta_vawa, by=colnames(dta_criminal[ , 1:6]))
+dta <- left_join(dta, dta_arrests, by=colnames(dta_criminal[ , 1:6]))
 dim(dta)
 
 colnames(dta)
@@ -485,6 +584,54 @@ dta<-dta%>%
                     "<br>Number of any criminal (per 1000): ", dtafig$total_criminal))%>%   
             layout(
                 title = "", 
+                xaxis = list(title = "<br>Number (per 1000)",  
+                             #range=c(0, 100), 
+                             showgrid = FALSE, showticklabels = TRUE),
+                yaxis = list(title = "",
+                             tickfont = list(size=9),
+                             categoryorder = "total descending"),
+                showlegend = FALSE
+            )
+```
+
+```{r plot_rate_criminal_rank_by_location, results='asis'}
+        
+        dtafig<-dta%>%
+            
+            filter( is.na(institution_size)==FALSE)%>%
+            group_by(institution_name)%>%
+            mutate(yearlatest=max(year))%>%
+            ungroup()%>%
+            
+            filter(year==yearlatest)
+        
+        dtafig%>%
+            plot_ly(
+                y = ~college,
+                type="bar", 
+                x = ~total_criminal_oncampus, 
+                line = list(color = greencolors[3]), 
+                marker = list(color = greencolors[3]),
+                hovertemplate = paste0(
+                    dtafig$college,       
+                    "<br>Number of any criminal ON campus (per 1000): ", dtafig$total_criminal))%>%   
+            add_trace(
+                x = ~total_criminal_noncampus, 
+                line = list(color = greencolors[5]), 
+                marker = list(color = greencolors[5]),
+                hovertemplate = paste0(
+                    dtafig$college,       
+                    "<br>Number of any criminal NON campus (per 1000): ", dtafig$total_criminal))%>%   
+             add_trace(
+                x = ~total_criminal_public, 
+                line = list(color = greencolors[7]), 
+                marker = list(color = greencolors[7]),
+                hovertemplate = paste0(
+                    dtafig$college,       
+                    "<br>Number of any criminal public properties (per 1000): ", dtafig$total_criminal))%>%   
+            layout(
+                title = "", 
+                barmode = 'stack', 
                 xaxis = list(title = "<br>Number (per 1000)",  
                              #range=c(0, 100), 
                              showgrid = FALSE, showticklabels = TRUE),
